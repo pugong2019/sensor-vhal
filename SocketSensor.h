@@ -21,10 +21,11 @@
 #include <errno.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include "SensorBase.h"
 
 
 #include "sensors.h"
-#include "InputEventReader.h"
+//#include "InputEventReader.h"
 
 /*****************************************************************************/
 
@@ -47,6 +48,10 @@ public:
     virtual int setEnable(int32_t handle, int enabled);
     virtual int64_t getDelay(int32_t handle);
     virtual int getEnable(int32_t handle);
+
+    virtual int getFd() const;
+
+
 
 private:
     int mEnabled[numSensors];

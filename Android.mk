@@ -33,8 +33,28 @@ LOCAL_CFLAGS := -DLOG_TAG=\"Sensors\" \
 LOCAL_SRC_FILES := \
 			SensorBase.cpp \
 			sensors.cpp \
-#			SocketSensor.cpp
+			SocketSensor.cpp
 
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
 
 include $(BUILD_SHARED_LIBRARY)
+
+
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := test_sensor
+
+LOCAL_MODULE_RELATIVE_PATH := hw
+
+LOCAL_MODULE_TAGS := optional
+
+LOCAL_CFLAGS := -DLOG_TAG=\"Sensors\" 
+
+LOCAL_SRC_FILES := test.cpp\
+			SensorBase.cpp \
+			sensors.cpp \
+			SocketSensor.cpp
+
+LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
+
+include $(BUILD_EXECUTABLE)
