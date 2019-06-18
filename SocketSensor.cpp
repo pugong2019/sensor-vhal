@@ -27,13 +27,15 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <pthread.h>
 
 #include <cutils/log.h>
 
 #include "SocketSensor.h"
 
-#define COMMAND_PORT 7770
-#define DATA_PORT 7771
+
+#define COMMAND_PORT 77770
+#define DATA_PORT 77772
 #define QUEUE 20
 
 #define BUFF_LEN 1024
@@ -42,10 +44,14 @@
 char sensor_data_buffer[BUFF_LEN];  //recived buffer
 struct sockaddr_in ser_addr; 
 struct sockaddr_in client_addr;
+
+struct sockaddr_in command_sockaddr;
+
+
 socklen_t client_addr_len = sizeof(client_addr);
 
 int recieved_len;
-
+int SocketSensor::command_conn_fd = -1;
 
 /*****************************************************************************/
 
@@ -73,40 +79,31 @@ SocketSensor::SocketSensor()
     mPendingEvents[Orientation  ].type = SENSOR_TYPE_ORIENTATION;
     mPendingEvents[Orientation  ].orientation.status = SENSOR_STATUS_ACCURACY_HIGH;
 
-    // TODO: Init socket waiting connect
+    // Init socket waiting connect
     //
+    int ret;
+
+    pthread_t id;
+    ret = pthread_create(&id, NULL, tcpThread, NULL);
+    if(ret != 0){
+        ALOGE("SocketSensor: create tcp thread failed!\n");
+    }
+
 
     data_socket_fd = socket(AF_INET, SOCK_DGRAM, 0); //AF_INET:IPV4;SOCK_DGRAM:UDP
     if(data_socket_fd < 0)
     {
-        ALOGE("create socket fail!\n");
+        ALOGE("SocketSensor: create data socket fail!\n");
     }
     ser_addr.sin_family = AF_INET;
     ser_addr.sin_addr.s_addr = htonl(INADDR_ANY); //IP address，INADDR_ANY：local address
     ser_addr.sin_port = htons(DATA_PORT);  //port number
 
-    int ret;
     ret = bind(data_socket_fd, (struct sockaddr*)&ser_addr, sizeof(ser_addr));
     if(ret < 0)
     {
-        ALOGE("socket bind fail!\n");
+        ALOGE("SocketSensor: socket bind fail!\n");
     }
-
-
-    // int command_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    // struct sockaddr_in command_sockaddr;
-    // command_sockaddr.sin_family = AF_INET;
-    // command_sockaddr.sin_port = htons(COMMAND_PORT);
-    // command_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    // if(bind(command_socket_fd, (struct sockaddr* ) &command_sockaddr, sizeof(command_sockaddr))==-1) {
-    //     perror("bind");
-    //     exit(1);
-    // }
-    // if(listen(command_sockaddr, QUEUE) == -1) {
-    //     perror("listen");
-    //     exit(1);
-    // }
 
 
 
@@ -141,9 +138,61 @@ SocketSensor::~SocketSensor()
 
 }
 
+void * SocketSensor:: tcpThread(void *){
+    //Init TCP server, command socket
+    int command_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if(command_socket_fd < 0)
+    {
+        ALOGE("SocketSensor: create command socket fail!\n");
+    }
+    command_sockaddr.sin_family = AF_INET;
+    command_sockaddr.sin_port = htons(COMMAND_PORT);
+    command_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    printf("bind port: %d?\n", COMMAND_PORT);
+
+    if(bind(command_socket_fd, (struct sockaddr* ) &command_sockaddr, sizeof(command_sockaddr))==-1) {
+        printf("SocketSensor: bind failed");
+
+        perror("bind");
+
+        ALOGD("SocketSensor: bind failed");
+
+        //exit(1);
+    }
+
+    printf("tcp sever start to listen");
+
+    if(listen(command_socket_fd, QUEUE) == -1) {
+        perror("listen");
+        ALOGD("SocketSensor: listen failed");
+
+        //exit(1);
+    }
+
+    printf("tcp sever start to wait and accept");
+
+
+    ALOGD("SocketSensor: waitting for client tcp connected");
+
+
+    if( (command_conn_fd = accept(command_socket_fd, (struct sockaddr *)NULL, NULL)) == -1) { 
+        printf(" accpt socket error: %s (errno :%d)\n",strerror(errno),errno); 
+        ALOGD("SocketSensor: accpt failed");
+
+        //return 0; 
+    }
+    ALOGD("SocketSensor: client tcp connected");
+
+    printf("33333");
+
+
+    return 0;
+}
+
 int SocketSensor::getFd() const {
 	if(data_fd == -1){
-		ALOGE("Don't have data fd!!!");
+		ALOGE("SocketSensor: Don't have data fd!!!");
 	}
 
 	return data_fd; 
@@ -168,6 +217,8 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
 	}
 
 
+
+
 	if (mEnabled[id] <= 0) {
 		if(enabled) {
 			flag = 1;
@@ -183,6 +234,10 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
     	// TODO: set enable by socket
     	//
 
+        if (command_conn_fd == -1){
+            ALOGD("SocketSensor: client is not connected, enable failed");
+            return -1;
+        }
 
 		if (err != 0) {
 			return err;
@@ -198,6 +253,8 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
 		if (mEnabled[id] < 0) mEnabled[id] = 0;
 	}
 	ALOGD("SocketSensor: mEnabled[%d] = %d", id, mEnabled[id]);
+    // err = -EINVAL;
+    // ALOGD("SocketSensor: return -EINVAL");
 
     return err;
 }
@@ -268,6 +325,13 @@ int SocketSensor::readEvents(sensors_event_t* data, int count)
 
 	//The number of events returned in data must be less or equal to the count argument. This function shall never return 0 (no event).
     
+    ALOGD("SocketSensor: check client connected");
+
+    if(command_conn_fd == -1){
+        ALOGD("SocketSensor: readEvents, client isn't connected");
+        return 0;
+    }
+
     if (count < 1)
         return -EINVAL;
 
@@ -276,12 +340,21 @@ int SocketSensor::readEvents(sensors_event_t* data, int count)
 
     memset(sensor_data_buffer, 0, buffer_lenth);
 
+    ALOGD("SocketSensor: readEvents, wait data from UDP");
+
     recieved_len = recvfrom(data_socket_fd, sensor_data_buffer, buffer_lenth, 0, (struct sockaddr*)&client_addr, &client_addr_len);  //blocked
+	
+	printf("SocketSensor: client:%s\n",sensor_data_buffer);  
+	ALOGE("SocketSensor: recieved data");
+    numEventReceived = recieved_len/PACKET_LEN;
+    
+    if(recieved_len == 0){
         printf("recieve data fail!\n");
         numEventReceived = 0;
     }
-    printf("client:%s\n",sensor_data_buffer);  
-    numEventReceived = recieved_len/PACKET_LEN;
+
+    
+
 
     //TODO: Read from socket
     //

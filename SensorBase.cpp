@@ -54,7 +54,7 @@ SensorBase::~SensorBase() {
 int SensorBase::open_device() {
     if (dev_fd<0 && dev_name) {
         dev_fd = open(dev_name, O_RDONLY);
-        ALOGE_IF(dev_fd<0, "Couldn't open %s (%s)", dev_name, strerror(errno));
+        ALOGE_IF(dev_fd<0, "TEST:Couldn't open %s (%s)", dev_name, strerror(errno));
     }
     return 0;
 }

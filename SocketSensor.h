@@ -50,6 +50,7 @@ public:
     virtual int getEnable(int32_t handle);
 
     virtual int getFd() const;
+    static void * tcpThread(void*);
 
 
 
@@ -61,7 +62,7 @@ private:
     int command_socket_fd = -1;
     int data_socket_fd = -1;
     
-    int command_conn_fd = -1;
+    static int command_conn_fd;
     int data_conn_fd = -1;
 
 	int handle2id(int32_t handle);

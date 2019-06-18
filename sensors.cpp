@@ -141,6 +141,7 @@ private:
 
 sensors_poll_context_t::sensors_poll_context_t()
 {
+    ALOGD("TEST CODE: new context");
 
     mSensors[amg] = new SocketSensor();
     mPollFds[amg].fd = mSensors[amg]->getFd();
@@ -168,6 +169,8 @@ sensors_poll_context_t::~sensors_poll_context_t() {
 }
 
 int sensors_poll_context_t::handleToDriver(int handle) {
+    ALOGD("TEST CODE: handleToDriver");
+
 	switch (handle) {
 		case ID_A:
 		case ID_M:
@@ -178,6 +181,8 @@ int sensors_poll_context_t::handleToDriver(int handle) {
 }
 
 int sensors_poll_context_t::activate(int handle, int enabled) {
+    ALOGD("TEST CODE: activate");
+
 	int drv = handleToDriver(handle);
 	int err;
 
@@ -192,11 +197,14 @@ int sensors_poll_context_t::activate(int handle, int enabled) {
 }
 
 int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
+    ALOGD("TEST CODE: setDelay");
 
 	return setDelay_sub(handle, ns);
 }
 
 int sensors_poll_context_t::setDelay_sub(int handle, int64_t ns) {
+    ALOGD("TEST CODE: setDelay_sub");
+
 	int drv = handleToDriver(handle);
 	int en = mSensors[drv]->getEnable(handle);
 	int64_t cur = mSensors[drv]->getDelay(handle);
@@ -218,6 +226,8 @@ int sensors_poll_context_t::setDelay_sub(int handle, int64_t ns) {
 
 int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
 {
+    ALOGD("TEST CODE: pollEvents");
+
     int nbEvents = 0;
     int n = 0;
 
@@ -225,7 +235,7 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
         // see if we have some leftover from the last poll()
         for (int i=0 ; count && i<numSensorDrivers ; i++) {
             SensorBase* const sensor(mSensors[i]);
-            if ((mPollFds[i].revents & POLLIN) || (sensor->hasPendingEvents())) {
+            //if ((mPollFds[i].revents & POLLIN) || (sensor->hasPendingEvents())) {
                 int nb = sensor->readEvents(data, count);
                 if (nb < count) {
                     // no more data for this sensor
@@ -234,7 +244,7 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
                 count -= nb;
                 nbEvents += nb;
                 data += nb;
-            }
+            //}
         }
 
         if (count) {
@@ -295,7 +305,7 @@ static int poll__poll(struct sensors_poll_device_t *dev,
 static int open_sensors(const struct hw_module_t* module, const char* id,
                         struct hw_device_t** device)
 {
-        ALOGD("TEST CODE: try to open acc sensor!!!!!");
+        ALOGD("TEST CODE: try to open acc sensor!");
         
         int status = -EINVAL;
         sensors_poll_context_t *dev = new sensors_poll_context_t();

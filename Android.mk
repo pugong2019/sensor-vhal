@@ -31,8 +31,8 @@ LOCAL_CFLAGS := -DLOG_TAG=\"Sensors\" \
 #				-DSENSORHAL_ACC_KXTF9
 
 LOCAL_SRC_FILES := \
-			SensorBase.cpp \
 			sensors.cpp \
+			SensorBase.cpp \
 			SocketSensor.cpp
 
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
