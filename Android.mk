@@ -26,9 +26,7 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_CFLAGS := -DLOG_TAG=\"Sensors\" \
-				-Wall \
-				-DSENSORHAL_ACC_ADXL346
-#				-DSENSORHAL_ACC_KXTF9
+				-Wall 
 
 LOCAL_SRC_FILES := \
 			sensors.cpp \
@@ -48,7 +46,8 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_CFLAGS := -DLOG_TAG=\"Sensors\" 
+LOCAL_CFLAGS := -DLOG_TAG=\"Sensors\" \
+				-DBIN
 
 LOCAL_SRC_FILES := test.cpp\
 			SensorBase.cpp \

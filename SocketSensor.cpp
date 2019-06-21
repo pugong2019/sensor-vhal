@@ -33,13 +33,18 @@
 
 #include "SocketSensor.h"
 
+#ifdef BIN
+    #define COMMAND_PORT 7770
+    #define DATA_PORT 7772
+#else
+    #define COMMAND_PORT 6770
+    #define DATA_PORT 6772
+#endif
 
-#define COMMAND_PORT 77770
-#define DATA_PORT 77772
-#define QUEUE 20
 
-#define BUFF_LEN 1024
-#define PACKET_LEN 20 // need make sure
+#define TCP_CLIENT_QUEUE 20
+
+#define BUFF_LEN 65536
 
 char sensor_data_buffer[BUFF_LEN];  //recived buffer
 struct sockaddr_in ser_addr; 
@@ -50,7 +55,7 @@ struct sockaddr_in command_sockaddr;
 
 socklen_t client_addr_len = sizeof(client_addr);
 
-int recieved_len;
+int recieved_len = 0;
 int SocketSensor::command_conn_fd = -1;
 
 /*****************************************************************************/
@@ -86,6 +91,8 @@ SocketSensor::SocketSensor()
     pthread_t id;
     ret = pthread_create(&id, NULL, tcpThread, NULL);
     if(ret != 0){
+        printf("SocketSensor: create tcp thread failed!\n");
+
         ALOGE("SocketSensor: create tcp thread failed!\n");
     }
 
@@ -104,25 +111,6 @@ SocketSensor::SocketSensor()
     {
         ALOGE("SocketSensor: socket bind fail!\n");
     }
-
-
-
-    // int data_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    // struct sockaddr_in data_sockaddr;
-    // data_sockaddr.sin_family = AF_INET;
-    // data_sockaddr.sin_port = htons(DATA_PORT);
-    // data_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    // if(bind(data_socket_fd, (struct sockaddr* ) &data_sockaddr, sizeof(data_sockaddr))==-1) {
-    //     perror("bind");
-    //     exit(1);
-    // }
-    // if(listen(data_socket_fd, QUEUE) == -1) {
-    //     perror("listen");
-    //     exit(1);
-    // }
-
-
 
 }
 
@@ -148,8 +136,8 @@ void * SocketSensor:: tcpThread(void *){
     command_sockaddr.sin_family = AF_INET;
     command_sockaddr.sin_port = htons(COMMAND_PORT);
     command_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    printf("bind port: %d?\n", COMMAND_PORT);
+    printf("bind port: %d??\n", COMMAND_PORT);
+    fflush(stdout);
 
     if(bind(command_socket_fd, (struct sockaddr* ) &command_sockaddr, sizeof(command_sockaddr))==-1) {
         printf("SocketSensor: bind failed");
@@ -161,16 +149,16 @@ void * SocketSensor:: tcpThread(void *){
         //exit(1);
     }
 
-    printf("tcp sever start to listen");
+    printf("tcp sever start to listen\n");
 
-    if(listen(command_socket_fd, QUEUE) == -1) {
+    if(listen(command_socket_fd, TCP_CLIENT_QUEUE) == -1) {
         perror("listen");
         ALOGD("SocketSensor: listen failed");
 
         //exit(1);
     }
 
-    printf("tcp sever start to wait and accept");
+    printf("tcp sever start to wait and accept\n");
 
 
     ALOGD("SocketSensor: waitting for client tcp connected");
@@ -184,8 +172,11 @@ void * SocketSensor:: tcpThread(void *){
     }
     ALOGD("SocketSensor: client tcp connected");
 
-    printf("33333");
+    printf("SocketSensor: client tcp connected\n");
 
+    while(1){
+        sleep(10);
+    }
 
     return 0;
 }
@@ -217,44 +208,51 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
 	}
 
 
+    printf("SocketSensor: start to set Enable\n");
 
 
-	if (mEnabled[id] <= 0) {
-		if(enabled) {
-			flag = 1;
-		}
-	} else if (mEnabled[id] == 1) {
-		if(!enabled) {
-			flag = 2;
-		};
-	}
+    if (command_conn_fd == -1){
+        ALOGD("SocketSensor: client is not connected, enable failed");
+        printf("SocketSensor: client is not connected, enable failed\n");
+        return -1;
+    }
+
+    // TODO: fix bug
+	// if (mEnabled[id] <= 0) {
+	// 	if(enabled) {
+	// 		flag = 1;
+	// 	}
+	// } else if (mEnabled[id] == 1) {
+	// 	if(!enabled) {
+	// 		flag = 2;
+	// 	};
+	// }
 
     if (flag != 0) {
     	
     	// TODO: set enable by socket
     	//
 
-        if (command_conn_fd == -1){
-            ALOGD("SocketSensor: client is not connected, enable failed");
-            return -1;
-        }
-
 		if (err != 0) {
 			return err;
 		}
 		ALOGD("SocketSensor: set %d to %s", id, flag);
+        printf("SocketSensor: set %d to %s\n", id, flag);
+
     }
 
-	if (enabled) {
-		(mEnabled[id])++;
-		if (mEnabled[id] > 32767) mEnabled[id] = 32767;
-	} else {
-		(mEnabled[id])--;
-		if (mEnabled[id] < 0) mEnabled[id] = 0;
-	}
+    // TODO: fix bug
+	// if (enabled) {
+	// 	(mEnabled[id])++;
+	// 	if (mEnabled[id] > 32767) mEnabled[id] = 32767;
+	// } else {
+	// 	(mEnabled[id])--;
+	// 	if (mEnabled[id] < 0) mEnabled[id] = 0;
+	// }
+    
+    mEnabled[id] = 1;
 	ALOGD("SocketSensor: mEnabled[%d] = %d", id, mEnabled[id]);
-    // err = -EINVAL;
-    // ALOGD("SocketSensor: return -EINVAL");
+    printf("SocketSensor: mEnabled[%d] = %d\n", id, mEnabled[id]);
 
     return err;
 }
@@ -283,16 +281,21 @@ int SocketSensor::setDelay(int32_t handle, int64_t ns)
 			return -EINVAL;
     }
 
-	if (ns != mDelay[id]) {
-   		
-   		// TODO2: set delay by socket
-   		//
+    //TODO: setDelay by TCP
+    //
+    //
+    //
 
-		if (err == 0) {
-			mDelay[id] = ns;
-			ALOGD("SocketSensor: set %s to %f ms.", id, ns/1000000.0f);
-		}
-	}
+	// if (ns != mDelay[id]) {
+   		
+ //   		// TODO2: set delay by socket
+ //   		//
+
+	// 	if (err == 0) {
+	// 		mDelay[id] = ns;
+	// 		ALOGD("SocketSensor: set %s to %f ms.", id, ns/1000000.0f);
+	// 	}
+	// }
 
     return err;
 }
@@ -327,53 +330,34 @@ int SocketSensor::readEvents(sensors_event_t* data, int count)
     
     ALOGD("SocketSensor: check client connected");
 
-    if(command_conn_fd == -1){
+    while(command_conn_fd == -1){
         ALOGD("SocketSensor: readEvents, client isn't connected");
-        return 0;
+        sleep(5);
     }
 
     if (count < 1)
         return -EINVAL;
 
     int numEventReceived = 0;
-    int buffer_lenth = count*PACKET_LEN;
+    int buffer_lenth = count*sizeof(sensors_event_t);
 
     memset(sensor_data_buffer, 0, buffer_lenth);
 
-    ALOGD("SocketSensor: readEvents, wait data from UDP");
+    ALOGD("SocketSensor: readEvents, wait %d data from UDP", count);
 
-    recieved_len = recvfrom(data_socket_fd, sensor_data_buffer, buffer_lenth, 0, (struct sockaddr*)&client_addr, &client_addr_len);  //blocked
+    //recieved_len = recvfrom(data_socket_fd, sensor_data_buffer, buffer_lenth, 0, (struct sockaddr*)&client_addr, &client_addr_len);  //blocked
+    recieved_len = recvfrom(data_socket_fd, data, buffer_lenth, 0, (struct sockaddr*)&client_addr, &client_addr_len);  //blocked
+
 	
-	printf("SocketSensor: client:%s\n",sensor_data_buffer);  
-	ALOGE("SocketSensor: recieved data");
-    numEventReceived = recieved_len/PACKET_LEN;
-    
+    // *data = sensor_data_buffer;
+	ALOGE("SocketSensor: recieved data: %d, package size: %d", recieved_len, sizeof(sensors_event_t));
+    numEventReceived = recieved_len/sizeof(sensors_event_t);
+
     if(recieved_len == 0){
         printf("recieve data fail!\n");
         numEventReceived = 0;
     }
 
-    
-
-
-    //TODO: Read from socket
-    //
-
-    /*
-    while (count && ..) {
-        if (mEnabled[j]) {
-            *data++ = mPendingEvents[j];
-            count--;
-            numEventReceived++;
-        }
-                
-        
-        } else {
-            ALOGE("SocketSensor: unknown event (type=%d, code=%d)",
-                    type, event->code);
-        }
-    }
-    */
     return numEventReceived;
 }
 

@@ -169,8 +169,6 @@ sensors_poll_context_t::~sensors_poll_context_t() {
 }
 
 int sensors_poll_context_t::handleToDriver(int handle) {
-    ALOGD("TEST CODE: handleToDriver");
-
 	switch (handle) {
 		case ID_A:
 		case ID_M:
@@ -203,8 +201,6 @@ int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
 }
 
 int sensors_poll_context_t::setDelay_sub(int handle, int64_t ns) {
-    ALOGD("TEST CODE: setDelay_sub");
-
 	int drv = handleToDriver(handle);
 	int en = mSensors[drv]->getEnable(handle);
 	int64_t cur = mSensors[drv]->getDelay(handle);
@@ -221,15 +217,16 @@ int sensors_poll_context_t::setDelay_sub(int handle, int64_t ns) {
 			err = mSensors[drv]->setDelay(handle, ns);
 		}
 	}
+    ALOGD("TEST CODE: setDelay_sub return %d", err);
 	return err;
 }
 
 int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
 {
-    ALOGD("TEST CODE: pollEvents");
+    ALOGD("TEST CODE: pollEvents: %d", count);
 
     int nbEvents = 0;
-    int n = 0;
+    //int n = 0;
 
     do {
         // see if we have some leftover from the last poll()
@@ -237,6 +234,8 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
             SensorBase* const sensor(mSensors[i]);
             //if ((mPollFds[i].revents & POLLIN) || (sensor->hasPendingEvents())) {
                 int nb = sensor->readEvents(data, count);
+                //ALOGD("TEST CODE: recieved value: %f, type: %d", data->data[0], data->type);
+
                 if (nb < count) {
                     // no more data for this sensor
                     mPollFds[i].revents = 0;
@@ -247,26 +246,29 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
             //}
         }
 
-        if (count) {
-            // we still have some room, so try to see if we can get
-            // some events immediately or just wait if we don't have
-            // anything to return
-            n = poll(mPollFds, numFds, nbEvents ? 0 : -1);
-            if (n<0) {
-                ALOGE("poll() failed (%s)", strerror(errno));
-                return -errno;
-            }
-            if (mPollFds[wake].revents & POLLIN) {
-                char msg;
-                int result = read(mPollFds[wake].fd, &msg, 1);
-                ALOGE_IF(result<0, "error reading from wake pipe (%s)", strerror(errno));
-                ALOGE_IF(msg != WAKE_MESSAGE, "unknown message on wake queue (0x%02x)", int(msg));
-                mPollFds[wake].revents = 0;
-            }
-        }
+        // if (count) {
+        //     // we still have some room, so try to see if we can get
+        //     // some events immediately or just wait if we don't have
+        //     // anything to return
+        //     n = poll(mPollFds, numFds, nbEvents ? 0 : -1);
+        //     if (n<0) {
+        //         ALOGE("poll() failed (%s)", strerror(errno));
+        //         return -errno;
+        //     }
+        //     if (mPollFds[wake].revents & POLLIN) {
+        //         char msg;
+        //         int result = read(mPollFds[wake].fd, &msg, 1);
+        //         ALOGE_IF(result<0, "error reading from wake pipe (%s)", strerror(errno));
+        //         ALOGE_IF(msg != WAKE_MESSAGE, "unknown message on wake queue (0x%02x)", int(msg));
+        //         mPollFds[wake].revents = 0;
+        //     }
+        // }
         // if we have events and space, go read them
-    } while (n && count);
+        //ALOGD("TEST CODE: recieved count: %d", count);
+    } while (count);
+    // } while (n && count);
 
+    ALOGD("TEST CODE: nbEvents: %d", nbEvents);
     return nbEvents;
 }
 
