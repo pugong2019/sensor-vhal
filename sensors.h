@@ -29,13 +29,15 @@
 
 __BEGIN_DECLS
 
+#define DEBUG_SENSOR_HAL true
+
 /*****************************************************************************/
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
 #define ID_A  (0)
 #define ID_M  (1)
-#define ID_O  (2)
+#define ID_G  (2)
 
 /*****************************************************************************/
 

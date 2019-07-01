@@ -80,7 +80,7 @@ SocketSensor::SocketSensor()
     mPendingEvents[MagneticField].magnetic.status = SENSOR_STATUS_ACCURACY_HIGH;
 
     mPendingEvents[Orientation  ].version = sizeof(sensors_event_t);
-    mPendingEvents[Orientation  ].sensor = ID_O;
+    mPendingEvents[Orientation  ].sensor = ID_G;
     mPendingEvents[Orientation  ].type = SENSOR_TYPE_ORIENTATION;
     mPendingEvents[Orientation  ].orientation.status = SENSOR_STATUS_ACCURACY_HIGH;
 
@@ -208,13 +208,14 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
 	}
 
 
-    printf("SocketSensor: start to set Enable\n");
+    printf("SocketSensor: start to set handle %d Enable\n", handle);
 
 
     if (command_conn_fd == -1){
         ALOGD("SocketSensor: client is not connected, enable failed");
         printf("SocketSensor: client is not connected, enable failed\n");
         return -1;
+
     }
 
     // TODO: fix bug
@@ -350,7 +351,10 @@ int SocketSensor::readEvents(sensors_event_t* data, int count)
 
 	
     // *data = sensor_data_buffer;
-	ALOGE("SocketSensor: recieved data: %d, package size: %d", recieved_len, sizeof(sensors_event_t));
+	//ALOGE("SocketSensor: recieved data: %d, package size: %d", recieved_len, sizeof(sensors_event_t));
+    //ALOGE("SocketSensor: recieved data: (version, %d) (sensor, %d) (type, %d) (timestamp %lld)", data[0].version, data[0].sensor, data[0].type, data[0].timestamp);
+    //ALOGE("SocketSensor: recieved data: (version, %s) (sensor, %d) (type, %d) (timestamp, %d)", data->version, data->sensor, data->type, data->timestamp);
+
     numEventReceived = recieved_len/sizeof(sensors_event_t);
 
     if(recieved_len == 0){
@@ -369,7 +373,7 @@ int SocketSensor::handle2id(int32_t handle)
 			return Accelerometer;
         case ID_M:
 			return MagneticField;
-        case ID_O:
+        case ID_G:
 			return Orientation;
 		default:
 			ALOGE("SocketSensor: unknown handle (%d)", handle);

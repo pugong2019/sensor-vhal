@@ -44,11 +44,11 @@
 
 #define SENSORS_ACCELERATION     (1<<ID_A)
 #define SENSORS_MAGNETIC_FIELD   (1<<ID_M)
-#define SENSORS_ORIENTATION      (1<<ID_O)
+#define SENSORS_ORIENTATION      (1<<ID_G)
 
 #define SENSORS_ACCELERATION_HANDLE     0
 #define SENSORS_MAGNETIC_FIELD_HANDLE   1
-#define SENSORS_ORIENTATION_HANDLE      2
+#define SENSORS_GYROSCOPE_HANDLE      2
 
 /*****************************************************************************/
 
@@ -69,8 +69,8 @@ static const struct sensor_t sSensorList[] = {
 		  (GRAVITY_EARTH * 16.0f) / 4096.0f, 0.145f, 10000, 0, 0, 0, 0, 0, 0, { } },
         { "AK8975 Orientation sensor",
           "Asahi Kasei Microdevices",
-          1, SENSORS_ORIENTATION_HANDLE,
-          SENSOR_TYPE_ORIENTATION, 360.0f,
+          1, SENSORS_GYROSCOPE_HANDLE,
+          SENSOR_TYPE_GYROSCOPE, 360.0f,
 		  CONVERT_O, 0.495f, 10000, 0, 0, 0, 0, 0, 0, { } }
 };
 
@@ -81,7 +81,8 @@ static int open_sensors(const struct hw_module_t* module, const char* id,
 static int sensors__get_sensors_list(struct sensors_module_t* module,
                                      struct sensor_t const** list)
 {
-        ALOGD("TEST CODE: get sensor list");
+        ALOGD_IF(DEBUG_SENSOR_HAL, "TEST CODE: get sensor list");
+
 
         *list = sSensorList;
         return ARRAY_SIZE(sSensorList);
@@ -141,8 +142,6 @@ private:
 
 sensors_poll_context_t::sensors_poll_context_t()
 {
-    ALOGD("TEST CODE: new context");
-
     mSensors[amg] = new SocketSensor();
     mPollFds[amg].fd = mSensors[amg]->getFd();
     mPollFds[amg].events = POLLIN;
@@ -172,14 +171,13 @@ int sensors_poll_context_t::handleToDriver(int handle) {
 	switch (handle) {
 		case ID_A:
 		case ID_M:
-		case ID_O:
+		case ID_G:
 			return amg;
 	}
 	return -EINVAL;
 }
 
 int sensors_poll_context_t::activate(int handle, int enabled) {
-    ALOGD("TEST CODE: activate");
 
 	int drv = handleToDriver(handle);
 	int err;
@@ -191,11 +189,13 @@ int sensors_poll_context_t::activate(int handle, int enabled) {
         int result = write(mWritePipeFd, &wakeMessage, 1);
         ALOGE_IF(result<0, "error sending wake message (%s)", strerror(errno));
     }
+    ALOGD_IF(DEBUG_SENSOR_HAL, "TEST CODE: activate %d, res: %d", handle, err);
+
     return err;
 }
 
 int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
-    ALOGD("TEST CODE: setDelay");
+    ALOGD_IF(DEBUG_SENSOR_HAL, "TEST CODE: setDelay handle%d:, %dns", handle, ns);
 
 	return setDelay_sub(handle, ns);
 }
@@ -217,13 +217,12 @@ int sensors_poll_context_t::setDelay_sub(int handle, int64_t ns) {
 			err = mSensors[drv]->setDelay(handle, ns);
 		}
 	}
-    ALOGD("TEST CODE: setDelay_sub return %d", err);
+
 	return err;
 }
 
 int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
 {
-    ALOGD("TEST CODE: pollEvents: %d", count);
 
     int nbEvents = 0;
     //int n = 0;
@@ -245,7 +244,6 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
                 data += nb;
             //}
         }
-
         // if (count) {
         //     // we still have some room, so try to see if we can get
         //     // some events immediately or just wait if we don't have
@@ -264,11 +262,12 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
         //     }
         // }
         // if we have events and space, go read them
-        //ALOGD("TEST CODE: recieved count: %d", count);
+        // ALOGD("TEST CODE: recieved count: %d", count);
+
     } while (count);
     // } while (n && count);
 
-    ALOGD("TEST CODE: nbEvents: %d", nbEvents);
+    //ALOGD("TEST CODE: nbEvents: %d", nbEvents);
     return nbEvents;
 }
 
@@ -308,7 +307,8 @@ static int open_sensors(const struct hw_module_t* module, const char* id,
                         struct hw_device_t** device)
 {
         ALOGD("TEST CODE: try to open acc sensor!");
-        
+        ALOGD_IF(DEBUG_SENSOR_HAL, "TEST CODE: setDelay handle%d:, %dns", handle, ns);
+
         int status = -EINVAL;
         sensors_poll_context_t *dev = new sensors_poll_context_t();
 
