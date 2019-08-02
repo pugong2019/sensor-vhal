@@ -124,6 +124,8 @@ SocketSensor::SocketSensor()
         ALOGE("SocketSensor: set socketopt error\n");
     }
 
+
+
 }
 
 SocketSensor::~SocketSensor()
@@ -401,6 +403,7 @@ int SocketSensor::readEvents(sensors_event_t* data, int count)
 
     recieved_len = recvfrom(data_socket_fd, data, buffer_lenth, 0, (struct sockaddr*)&client_addr, &client_addr_len);  //unblocked
 
+	
 	//ALOGE("SocketSensor: recieved data: %d, package size: %d", recieved_len, sizeof(sensors_event_t));
     //ALOGE("SocketSensor: recieved data: (version, %d) (sensor, %d) (type, %d) (timestamp %lld)", data[0].version, data[0].sensor, data[0].type, data[0].timestamp);
     //ALOGE("SocketSensor: recieved data: (version, %s) (sensor, %d) (type, %d) (timestamp, %d)", data->version, data->sensor, data->type, data->timestamp);
