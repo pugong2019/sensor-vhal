@@ -242,32 +242,16 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
                 count -= nb;
                 nbEvents += nb;
                 data += nb;
-            //}
+                if (nb=0 && nbEvents>0){
+                    ALOGD("pool %d data", nbEvents);
+                    return nbEvents;
+                }
         }
-        // if (count) {
-        //     // we still have some room, so try to see if we can get
-        //     // some events immediately or just wait if we don't have
-        //     // anything to return
-        //     n = poll(mPollFds, numFds, nbEvents ? 0 : -1);
-        //     if (n<0) {
-        //         ALOGE("poll() failed (%s)", strerror(errno));
-        //         return -errno;
-        //     }
-        //     if (mPollFds[wake].revents & POLLIN) {
-        //         char msg;
-        //         int result = read(mPollFds[wake].fd, &msg, 1);
-        //         ALOGE_IF(result<0, "error reading from wake pipe (%s)", strerror(errno));
-        //         ALOGE_IF(msg != WAKE_MESSAGE, "unknown message on wake queue (0x%02x)", int(msg));
-        //         mPollFds[wake].revents = 0;
-        //     }
-        // }
-        // if we have events and space, go read them
-        // ALOGD("TEST CODE: recieved count: %d", count);
 
     } while (count);
     // } while (n && count);
 
-    //ALOGD("TEST CODE: nbEvents: %d", nbEvents);
+    // ALOGD("TEST CODE: nbEvents: %d", nbEvents);
     return nbEvents;
 }
 
@@ -306,8 +290,7 @@ static int poll__poll(struct sensors_poll_device_t *dev,
 static int open_sensors(const struct hw_module_t* module, const char* id,
                         struct hw_device_t** device)
 {
-        ALOGD("TEST CODE: try to open acc sensor!");
-        ALOGD_IF(DEBUG_SENSOR_HAL, "TEST CODE: setDelay handle%d:, %dns", handle, ns);
+        ALOGD_IF(DEBUG_SENSOR_HAL, "TEST CODE: try to open acc sensor!");
 
         int status = -EINVAL;
         sensors_poll_context_t *dev = new sensors_poll_context_t();

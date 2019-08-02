@@ -31,6 +31,20 @@
 
 struct input_event;
 
+
+typedef enum{
+    ENABLE = 0,
+    DELAY = 1
+} sensor_config_key_t
+
+
+typedef struct{
+    int32_t handle;
+    sensor_config_key_t key;
+    int64_t value;
+}
+
+
 class SocketSensor : public SensorBase {
 public:
             SocketSensor();

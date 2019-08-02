@@ -31,6 +31,8 @@
 
 #include <cutils/log.h>
 
+#include <arpa/inet.h>
+
 #include "SocketSensor.h"
 
 #ifdef BIN
@@ -44,14 +46,19 @@
 
 #define TCP_CLIENT_QUEUE 20
 
-#define BUFF_LEN 65536
+#define TIMEOUT_US 2000
 
-char sensor_data_buffer[BUFF_LEN];  //recived buffer
+// #define SEVER_IP "10.42.0.117"
+#define SEVER_IP "172.100.0.3"
+
+
 struct sockaddr_in ser_addr; 
 struct sockaddr_in client_addr;
 
-struct sockaddr_in command_sockaddr;
+struct sockaddr_in command_my_sockaddr;
+struct sockaddr_in command_rt_sockaddr;
 
+bool tcp_connected = false;
 
 socklen_t client_addr_len = sizeof(client_addr);
 
@@ -87,7 +94,6 @@ SocketSensor::SocketSensor()
     // Init socket waiting connect
     //
     int ret;
-
     pthread_t id;
     ret = pthread_create(&id, NULL, tcpThread, NULL);
     if(ret != 0){
@@ -111,6 +117,12 @@ SocketSensor::SocketSensor()
     {
         ALOGE("SocketSensor: socket bind fail!\n");
     }
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = TIMEOUT_US;
+    if(setsockopt(data_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0){
+        ALOGE("SocketSensor: set socketopt error\n");
+    }
 
 }
 
@@ -133,13 +145,13 @@ void * SocketSensor:: tcpThread(void *){
     {
         ALOGE("SocketSensor: create command socket fail!\n");
     }
-    command_sockaddr.sin_family = AF_INET;
-    command_sockaddr.sin_port = htons(COMMAND_PORT);
-    command_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    command_my_sockaddr.sin_family = AF_INET;
+    command_my_sockaddr.sin_port = htons(COMMAND_PORT);
+    command_my_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     printf("bind port: %d??\n", COMMAND_PORT);
     fflush(stdout);
 
-    if(bind(command_socket_fd, (struct sockaddr* ) &command_sockaddr, sizeof(command_sockaddr))==-1) {
+    if(bind(command_socket_fd, (struct sockaddr* ) &command_my_sockaddr, sizeof(command_my_sockaddr))==-1) {
         printf("SocketSensor: bind failed");
 
         perror("bind");
@@ -170,6 +182,9 @@ void * SocketSensor:: tcpThread(void *){
 
         //return 0; 
     }
+
+    tcp_connected = true;
+
     ALOGD("SocketSensor: client tcp connected");
 
     printf("SocketSensor: client tcp connected\n");
@@ -180,6 +195,49 @@ void * SocketSensor:: tcpThread(void *){
 
     return 0;
 }
+
+// void * SocketSensor:: tcpThread(void *){
+//     //Init TCP client, command socket
+
+//     ALOGD("createTcpSocket...");
+//     int command_socket_fd;
+//     bzero(&command_my_sockaddr, sizeof(command_my_sockaddr));
+//     bzero(&command_rt_sockaddr, sizeof(command_rt_sockaddr));
+//     const char *server = SEVER_IP;  // 服务器IP
+
+//     if ((command_socket_fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0)) < 0)
+//         ALOGE("SocketSensor: create tcp socket error: %s(errno: %d)\n", strerror(errno), errno);
+
+//     memset((char *) &command_my_sockaddr, 0, sizeof(command_my_sockaddr));
+//     command_my_sockaddr.sin_family = AF_INET;
+//     command_my_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+//     command_my_sockaddr.sin_port = htons(0);
+
+//     memset((char *) &command_rt_sockaddr, 0, sizeof(command_rt_sockaddr));
+//     command_rt_sockaddr.sin_family = AF_INET;
+//     command_rt_sockaddr.sin_port = htons(COMMAND_PORT);
+
+//     int on=0;
+//     if((setsockopt(command_socket_fd, SOL_SOCKET,SO_REUSEADDR, &on, sizeof(on)))<0)
+//     {
+//         perror("SocketSensor: setsockopt failed");
+//     }
+
+//     if (inet_pton(AF_INET, server, &command_rt_sockaddr.sin_addr) <= 0) {
+//         ALOGE("SocketSensor: tcp bind error: %s(errno: %d)\n", strerror(errno), errno);
+//     }
+
+//     if (connect(command_socket_fd, (struct sockaddr *)&command_rt_sockaddr, sizeof(command_rt_sockaddr)) < 0)
+//     {
+//         ALOGE("SocketSensor: tcp connect error: %s(errno: %d)\n", strerror(errno), errno);
+//     }
+//     tcp_connected = true;
+//     ALOGI("SocketSensor: TCP connected.");
+//     while(1){
+//         sleep(10);
+//     }
+    
+// }
 
 int SocketSensor::getFd() const {
 	if(data_fd == -1){
@@ -211,7 +269,7 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
     printf("SocketSensor: start to set handle %d Enable\n", handle);
 
 
-    if (command_conn_fd == -1){
+    if (!tcp_connected){
         ALOGD("SocketSensor: client is not connected, enable failed");
         printf("SocketSensor: client is not connected, enable failed\n");
         return -1;
@@ -329,12 +387,7 @@ int SocketSensor::readEvents(sensors_event_t* data, int count)
 
 	//The number of events returned in data must be less or equal to the count argument. This function shall never return 0 (no event).
     
-    ALOGD("SocketSensor: check client connected");
-
-    while(command_conn_fd == -1){
-        ALOGD("SocketSensor: readEvents, client isn't connected");
-        sleep(5);
-    }
+    // ALOGD("SocketSensor: check client connected");
 
     if (count < 1)
         return -EINVAL;
@@ -344,21 +397,18 @@ int SocketSensor::readEvents(sensors_event_t* data, int count)
 
     memset(sensor_data_buffer, 0, buffer_lenth);
 
-    ALOGD("SocketSensor: readEvents, wait %d data from UDP", count);
+    //ALOGD("SocketSensor: readEvents, wait %d data from UDP", count);
 
-    //recieved_len = recvfrom(data_socket_fd, sensor_data_buffer, buffer_lenth, 0, (struct sockaddr*)&client_addr, &client_addr_len);  //blocked
-    recieved_len = recvfrom(data_socket_fd, data, buffer_lenth, 0, (struct sockaddr*)&client_addr, &client_addr_len);  //blocked
+    recieved_len = recvfrom(data_socket_fd, data, buffer_lenth, 0, (struct sockaddr*)&client_addr, &client_addr_len);  //unblocked
 
-	
-    // *data = sensor_data_buffer;
 	//ALOGE("SocketSensor: recieved data: %d, package size: %d", recieved_len, sizeof(sensors_event_t));
     //ALOGE("SocketSensor: recieved data: (version, %d) (sensor, %d) (type, %d) (timestamp %lld)", data[0].version, data[0].sensor, data[0].type, data[0].timestamp);
     //ALOGE("SocketSensor: recieved data: (version, %s) (sensor, %d) (type, %d) (timestamp, %d)", data->version, data->sensor, data->type, data->timestamp);
 
     numEventReceived = recieved_len/sizeof(sensors_event_t);
 
-    if(recieved_len == 0){
-        printf("recieve data fail!\n");
+    if(recieved_len < 0){
+        printf("recieve time out!\n");
         numEventReceived = 0;
     }
 
