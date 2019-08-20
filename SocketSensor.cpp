@@ -36,11 +36,11 @@
 #include "SocketSensor.h"
 
 #ifdef BIN
-    #define COMMAND_PORT 7770
-    #define DATA_PORT 7772
+    #define COMMAND_PORT 4321
+    #define DATA_PORT 1234
 #else
-    #define COMMAND_PORT 6770
-    #define DATA_PORT 6772
+    #define COMMAND_PORT 4321
+    #define DATA_PORT 1234
 #endif
 
 
@@ -49,7 +49,7 @@
 #define TIMEOUT_US 2000
 
 // #define SEVER_IP "10.42.0.117"
-#define SEVER_IP "172.100.0.3"
+#define SEVER_IP "172.0.0.1"
 
 
 struct sockaddr_in ser_addr; 
@@ -64,6 +64,7 @@ socklen_t client_addr_len = sizeof(client_addr);
 
 int recieved_len = 0;
 int SocketSensor::command_conn_fd = -1;
+char buf[100];
 
 /*****************************************************************************/
 
@@ -93,8 +94,9 @@ SocketSensor::SocketSensor()
 
     // Init socket waiting connect
     //
-    int ret;
+    int ret = 0;
     pthread_t id;
+    pthread_t idd;
     ret = pthread_create(&id, NULL, tcpThread, NULL);
     if(ret != 0){
         printf("SocketSensor: create tcp thread failed!\n");
@@ -117,15 +119,29 @@ SocketSensor::SocketSensor()
     {
         ALOGE("SocketSensor: socket bind fail!\n");
     }
+    //ALOGE("cp: udp socket bind success = %d!\n",sizeof(sensors_event_t));
+    //printf("cp: create udp thread success = %d!\n",DATA_PORT);
     struct timeval tv;
     tv.tv_sec = 0;
     tv.tv_usec = TIMEOUT_US;
     if(setsockopt(data_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0){
         ALOGE("SocketSensor: set socketopt error\n");
     }
-
-
-
+    //printf("1\n");
+    /* 
+    while(true){
+        while(tcp_connected){
+            int tcp = read(command_socket_fd,buf,sizeof(buf));
+            if(tcp > 0){
+                printf("recv tcp data = %d \n",tcp);
+            }
+            int udp = recvfrom(data_socket_fd,buf,sizeof(buf),0,(struct sockaddr*)&ser_addr,&client_addr_len);
+            if(udp > 0){
+                printf("recv udp data = %d \n",udp);
+            }
+        }
+    }
+    */
 }
 
 SocketSensor::~SocketSensor()
@@ -139,19 +155,28 @@ SocketSensor::~SocketSensor()
     close(data_socket_fd);
 
 }
-
 void * SocketSensor:: tcpThread(void *){
     //Init TCP server, command socket
+    int enable = 1;
+    struct	sockaddr_in command_client_sockaddr;
+    socklen_t l = sizeof(command_client_sockaddr);
     int command_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if(command_socket_fd < 0)
     {
+        printf("creat tcp fd error\n");
         ALOGE("SocketSensor: create command socket fail!\n");
     }
+    memset(&command_my_sockaddr,0,sizeof(command_my_sockaddr));
     command_my_sockaddr.sin_family = AF_INET;
     command_my_sockaddr.sin_port = htons(COMMAND_PORT);
     command_my_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     printf("bind port: %d??\n", COMMAND_PORT);
     fflush(stdout);
+
+    if (setsockopt(command_socket_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+		printf("[err] command_socket_fd reuse\n");
+		close(command_socket_fd);
+	}
 
     if(bind(command_socket_fd, (struct sockaddr* ) &command_my_sockaddr, sizeof(command_my_sockaddr))==-1) {
         printf("SocketSensor: bind failed");
@@ -178,7 +203,7 @@ void * SocketSensor:: tcpThread(void *){
     ALOGD("SocketSensor: waitting for client tcp connected");
 
 
-    if( (command_conn_fd = accept(command_socket_fd, (struct sockaddr *)NULL, NULL)) == -1) { 
+    if( (command_conn_fd = accept(command_socket_fd, (struct sockaddr *)&command_client_sockaddr, &l)) == -1) { 
         printf(" accpt socket error: %s (errno :%d)\n",strerror(errno),errno); 
         ALOGD("SocketSensor: accpt failed");
 
@@ -187,7 +212,23 @@ void * SocketSensor:: tcpThread(void *){
 
     tcp_connected = true;
 
-    ALOGD("SocketSensor: client tcp connected");
+    printf("SocketSensor: client tcp connected\n");
+    ALOGD("SocketSensor: client tcp connected ");
+    while(true){
+        char buf[200];
+
+        int len = read(command_conn_fd,buf,sizeof(buf));
+
+        if(len < 0){
+            continue;
+        }
+        else{
+             printf(" oooo :%d)\n",len); 
+             ALOGD("ooo recv tcp data");
+        }
+    }
+
+    ALOGD("SocketSensor: client tcp connected ");
 
     printf("SocketSensor: client tcp connected\n");
 
@@ -397,22 +438,22 @@ int SocketSensor::readEvents(sensors_event_t* data, int count)
     int numEventReceived = 0;
     int buffer_lenth = count*sizeof(sensors_event_t);
 
-    memset(sensor_data_buffer, 0, buffer_lenth);
 
     //ALOGD("SocketSensor: readEvents, wait %d data from UDP", count);
 
     recieved_len = recvfrom(data_socket_fd, data, buffer_lenth, 0, (struct sockaddr*)&client_addr, &client_addr_len);  //unblocked
-
-	
+    //int rec = read(command_socket_fd,data,buffer_lenth);
 	//ALOGE("SocketSensor: recieved data: %d, package size: %d", recieved_len, sizeof(sensors_event_t));
     //ALOGE("SocketSensor: recieved data: (version, %d) (sensor, %d) (type, %d) (timestamp %lld)", data[0].version, data[0].sensor, data[0].type, data[0].timestamp);
     //ALOGE("SocketSensor: recieved data: (version, %s) (sensor, %d) (type, %d) (timestamp, %d)", data->version, data->sensor, data->type, data->timestamp);
-
     numEventReceived = recieved_len/sizeof(sensors_event_t);
 
     if(recieved_len < 0){
         printf("recieve time out!\n");
         numEventReceived = 0;
+    }
+    else{
+        printf("recieved udp data\n");
     }
 
     return numEventReceived;
