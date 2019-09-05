@@ -50,6 +50,7 @@
 
 // #define SEVER_IP "10.42.0.117"
 #define SEVER_IP "172.0.0.1"
+#define LOCAL_IP "127.0.0.1"
 
 
 struct sockaddr_in ser_addr; 
@@ -65,6 +66,12 @@ socklen_t client_addr_len = sizeof(client_addr);
 int recieved_len = 0;
 int SocketSensor::command_conn_fd = -1;
 char buf[100];
+typedef struct{
+    int type;
+    int accuracy;
+    int mode;
+    int status;
+} ctl_msg_t;
 
 /*****************************************************************************/
 
@@ -96,7 +103,6 @@ SocketSensor::SocketSensor()
     //
     int ret = 0;
     pthread_t id;
-    pthread_t idd;
     ret = pthread_create(&id, NULL, tcpThread, NULL);
     if(ret != 0){
         printf("SocketSensor: create tcp thread failed!\n");
@@ -119,15 +125,15 @@ SocketSensor::SocketSensor()
     {
         ALOGE("SocketSensor: socket bind fail!\n");
     }
-    //ALOGE("cp: udp socket bind success = %d!\n",sizeof(sensors_event_t));
-    //printf("cp: create udp thread success = %d!\n",DATA_PORT);
+    ALOGE("cp: udp socket bind success = %d!\n",DATA_PORT);
+    printf("cp: create udp thread success = %d!\n",DATA_PORT);
     struct timeval tv;
     tv.tv_sec = 0;
     tv.tv_usec = TIMEOUT_US;
     if(setsockopt(data_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0){
         ALOGE("SocketSensor: set socketopt error\n");
     }
-    //printf("1\n");
+    ALOGD("SocketSensor: client tcp connected , tcpfd = %d , udpfd = %d", command_conn_fd , data_socket_fd);
     /* 
     while(true){
         while(tcp_connected){
@@ -155,6 +161,48 @@ SocketSensor::~SocketSensor()
     close(data_socket_fd);
 
 }
+
+void * SocketSensor:: tcpThread(void *){
+    //Init TCP server, command socket
+    int enable = 1;
+	int i = 0;
+    struct	sockaddr_in command_client_sockaddr;
+
+    command_conn_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if(command_conn_fd < 0)
+    {
+        printf("creat tcp fd error\n");
+        ALOGE("SocketSensor: create command socket fail!\n");
+    }
+    memset(&command_client_sockaddr,0,sizeof(command_client_sockaddr));
+    command_client_sockaddr.sin_family = AF_INET;
+    command_client_sockaddr.sin_port = htons(COMMAND_PORT);
+    command_client_sockaddr.sin_addr.s_addr = inet_addr(LOCAL_IP);
+    printf("bind port: %d??\n", COMMAND_PORT);
+    fflush(stdout);
+
+    printf("tcp client start to connect\n");
+
+
+    ALOGD("SocketSensor: connect client tcp");
+
+
+	int ret = connect(command_conn_fd, (struct sockaddr *)&command_client_sockaddr, sizeof(command_client_sockaddr));
+	while (ret < 0 && ++i < 3) {
+		ret = connect(command_conn_fd, (struct sockaddr *)&command_client_sockaddr, sizeof(command_client_sockaddr));
+	}
+    if(ret < 0)
+        return 0;
+    tcp_connected = true;
+
+    printf("SocketSensor: client tcp connected\n");
+    ALOGD("SocketSensor: client tcp connected = %d",command_conn_fd);
+    while(1){
+        sleep(10);
+    }
+    return 0;
+}
+/* 
 void * SocketSensor:: tcpThread(void *){
     //Init TCP server, command socket
     int enable = 1;
@@ -213,32 +261,13 @@ void * SocketSensor:: tcpThread(void *){
     tcp_connected = true;
 
     printf("SocketSensor: client tcp connected\n");
-    ALOGD("SocketSensor: client tcp connected ");
-    while(true){
-        char buf[200];
-
-        int len = read(command_conn_fd,buf,sizeof(buf));
-
-        if(len < 0){
-            continue;
-        }
-        else{
-             printf(" oooo :%d)\n",len); 
-             ALOGD("ooo recv tcp data");
-        }
-    }
-
-    ALOGD("SocketSensor: client tcp connected ");
-
-    printf("SocketSensor: client tcp connected\n");
-
+    ALOGD("SocketSensor: client tcp connected = %d",command_conn_fd);
     while(1){
         sleep(10);
     }
-
     return 0;
 }
-
+*/
 // void * SocketSensor:: tcpThread(void *){
 //     //Init TCP client, command socket
 
@@ -295,13 +324,18 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
 	int id = handle2id(handle);
 	int err = 0;
 	bool flag = 0;
-
+    int type = 0;
+    char send_buf[20];
+    ALOGE("SocketSensor: seeeeeeet enable");
 	switch (id) {
 	case Accelerometer:
+        type = 1;
 		break;
 	case MagneticField:
+        type = 2;
 		break;
 	case Orientation:
+        type = 4;
 		break;
 	default:
 		ALOGE("SocketSensor: unknown handle (%d)", handle);
@@ -317,6 +351,18 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
         printf("SocketSensor: client is not connected, enable failed\n");
         return -1;
 
+    }
+    else{
+        ALOGD("SocketSensor: client is connected, enable success = %d",command_conn_fd);
+        printf("SocketSensor: client is connected, enable success\n");
+        ctl_msg_t * ctl_msg = (ctl_msg_t*)send_buf;
+        ctl_msg->type = type;
+        ctl_msg->accuracy = 0;
+        ctl_msg->mode = 3;
+        ctl_msg->status = 1;
+        int wr_len = send(command_conn_fd,send_buf,sizeof(send_buf),0);
+        ALOGD("SocketSensor: send enable msg (%d)", wr_len);
+        printf("SocketSensor: send enable msg = d%\n",wr_len);
     }
 
     // TODO: fix bug
@@ -365,7 +411,9 @@ int SocketSensor::setDelay(int32_t handle, int64_t ns)
 	int err = 0;
 	char buffer[32];
 	int bytes;
-
+    int type = 0;
+    char send_buf[20];
+    ALOGE("SocketSensor: seeeeeeet delay");
     if (ns < -1 || 2147483647 < ns) {
 		ALOGE("SocketSensor: invalid delay (%lld)", ns);
         return -EINVAL;
@@ -373,14 +421,30 @@ int SocketSensor::setDelay(int32_t handle, int64_t ns)
 
     switch (id) {
         case Accelerometer:
-			break;
-        case MagneticField:
-			break;
-        case Orientation:
-			break;
+            type = 1;
+		    break;
+	    case MagneticField:
+            type = 2;
+		    break;
+	    case Orientation:
+            type = 4;
+		    break;
 		default:
 			ALOGE("SocketSensor: unknown handle (%d)", handle);
 			return -EINVAL;
+    }
+
+    if (tcp_connected){
+        ALOGD("SocketSensor: client is connected, enable success");
+        printf("SocketSensor: client is connected, enable success\n");
+        ctl_msg_t * ctl_msg = (ctl_msg_t*)send_buf;
+        ctl_msg->type = type;
+        ctl_msg->accuracy = 1;
+        ctl_msg->mode = 0;
+        ctl_msg->status = 0;
+        int wr_len = write(command_conn_fd,send_buf,sizeof(send_buf));
+        ALOGD("SocketSensor: send delay msg (%d)", wr_len);
+        printf("SocketSensor: send delay msg = %d\n",wr_len);
     }
 
     //TODO: setDelay by TCP
@@ -449,11 +513,13 @@ int SocketSensor::readEvents(sensors_event_t* data, int count)
     numEventReceived = recieved_len/sizeof(sensors_event_t);
 
     if(recieved_len < 0){
+        //ALOGD("SocketSensor: receive time out");
         printf("recieve time out!\n");
         numEventReceived = 0;
     }
     else{
-        printf("recieved udp data\n");
+        //ALOGD("SocketSensor: receive udp data = %d,=%d",recieved_len,numEventReceived);
+        //printf("recieved udp data\n");
     }
 
     return numEventReceived;
