@@ -353,14 +353,12 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
 
     }
     else{
-        ALOGD("SocketSensor: client is connected, enable success = %d",command_conn_fd);
-        printf("SocketSensor: client is connected, enable success\n");
         ctl_msg_t * ctl_msg = (ctl_msg_t*)send_buf;
         ctl_msg->type = type;
         ctl_msg->accuracy = 0;
         ctl_msg->mode = 3;
-        ctl_msg->status = 1;
-        int wr_len = send(command_conn_fd,send_buf,sizeof(send_buf),0);
+        ctl_msg->status = enabled;
+        int wr_len = write(command_conn_fd,send_buf,sizeof(ctl_msg_t));
         ALOGD("SocketSensor: send enable msg (%d)", wr_len);
         printf("SocketSensor: send enable msg = d%\n",wr_len);
     }
@@ -435,14 +433,12 @@ int SocketSensor::setDelay(int32_t handle, int64_t ns)
     }
 
     if (tcp_connected){
-        ALOGD("SocketSensor: client is connected, enable success");
-        printf("SocketSensor: client is connected, enable success\n");
         ctl_msg_t * ctl_msg = (ctl_msg_t*)send_buf;
         ctl_msg->type = type;
-        ctl_msg->accuracy = 1;
+        ctl_msg->accuracy = int32_t(ns/1000000);
         ctl_msg->mode = 0;
         ctl_msg->status = 0;
-        int wr_len = write(command_conn_fd,send_buf,sizeof(send_buf));
+        int wr_len = write(command_conn_fd,send_buf,sizeof(ctl_msg_t));
         ALOGD("SocketSensor: send delay msg (%d)", wr_len);
         printf("SocketSensor: send delay msg = %d\n",wr_len);
     }
