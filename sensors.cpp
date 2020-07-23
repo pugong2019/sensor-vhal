@@ -195,7 +195,7 @@ int sensors_poll_context_t::activate(int handle, int enabled) {
 }
 
 int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
-    ALOGD_IF(DEBUG_SENSOR_HAL, "TEST CODE: setDelay handle%d:, %dns", handle, ns);
+    ALOGD_IF(DEBUG_SENSOR_HAL, "TEST CODE: setDelay handle%d:, %lldns", handle, ns);
 
 	return setDelay_sub(handle, ns);
 }
@@ -242,7 +242,7 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
                 count -= nb;
                 nbEvents += nb;
                 data += nb;
-                if (nb=0 && nbEvents>0){
+                if (nb==0 && nbEvents>0){
                     ALOGD("pool %d data", nbEvents);
                     return nbEvents;
                 }

@@ -2,6 +2,7 @@
 1. copy the project folder to $AIC_SOURCE_FOLDER/hardware/intel/
 2. build sensor hal
 ---
+    source ./build/envsetup.sh
     cd $AIC_SOURCE_FOLDER  
     mmm ./hardware/intel/remoteg-aic_sensor_hal/
 

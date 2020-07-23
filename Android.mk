@@ -25,8 +25,7 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_CFLAGS := -DLOG_TAG=\"Sensors\" \
-				-Wall 
+LOCAL_CFLAGS += -DLOG_TAG=\"Sensors\" -Wno-unused-parameter -Wno-unused-variable -Wno-unused-private-field
 
 LOCAL_SRC_FILES := \
 			sensors.cpp \
@@ -46,8 +45,7 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_CFLAGS := -DLOG_TAG=\"Sensors\" \
-				-DBIN
+LOCAL_CFLAGS += -DLOG_TAG=\"Sensors\" -DBIN -Wno-unused-parameter -Wno-unused-variable -Wno-unused-private-field
 
 LOCAL_SRC_FILES := test.cpp\
 			SensorBase.cpp \

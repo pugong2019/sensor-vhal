@@ -323,7 +323,7 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
 {
 	int id = handle2id(handle);
 	int err = 0;
-	bool flag = 0;
+	int flag = 0;
     int type = 0;
     char send_buf[20];
     ALOGE("SocketSensor: seeeeeeet enable");
@@ -360,7 +360,7 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
         ctl_msg->status = enabled;
         int wr_len = write(command_conn_fd,send_buf,sizeof(ctl_msg_t));
         ALOGD("SocketSensor: send enable msg (%d)", wr_len);
-        printf("SocketSensor: send enable msg = d%\n",wr_len);
+        // printf("SocketSensor: send enable msg = d%\n",wr_len);
     }
 
     // TODO: fix bug
@@ -382,8 +382,8 @@ int SocketSensor::setEnable(int32_t handle, int enabled)
 		if (err != 0) {
 			return err;
 		}
-		ALOGD("SocketSensor: set %d to %s", id, flag);
-        printf("SocketSensor: set %d to %s\n", id, flag);
+		ALOGD("SocketSensor: set %d to %d", id, flag);
+        printf("SocketSensor: set %d to %d\n", id, flag);
 
     }
 

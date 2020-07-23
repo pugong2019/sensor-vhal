@@ -78,11 +78,11 @@ private:
 	int64_t mDelay[numSensors];
     sensors_event_t mPendingEvents[numSensors];
 
-    int command_socket_fd = -1;
+    // int command_socket_fd = -1;
     int data_socket_fd = -1;
     
     static int command_conn_fd;
-    int data_conn_fd = -1;
+    // int data_conn_fd = -1;
 
 	int handle2id(int32_t handle);
 
