@@ -1,4 +1,4 @@
-# Copyright (C) 2008 The Android Open Source Project
+# Copyright (C) 2009 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,43 +15,19 @@
 
 LOCAL_PATH := $(call my-dir)
 
-# HAL module implemenation, not prelinked, and stored in
-# hw/<SENSORS_HARDWARE_MODULE_ID>.<ro.product.board>.so
+# HAL module implemenation stored in
+# hw/<SENSORS_HARDWARE_MODULE_ID>.<ro.hardware>.so
+
 include $(CLEAR_VARS)
-
-LOCAL_MODULE := sensors.default
-
+# LOCAL_VENDOR_MODULE := true
+LOCAL_MODULE := sensors.cic_cloud
+LOCAL_CFLAGS += -DLOG_TAG=\"SensorsHal\" -Wno-unused-parameter -Wno-unused-variable -Wno-unused-private-field -Wno-unused-function -Wno-format
+# LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_RELATIVE_PATH := hw
-
-LOCAL_MODULE_TAGS := optional
-
-LOCAL_CFLAGS += -DLOG_TAG=\"Sensors\" -Wno-unused-parameter -Wno-unused-variable -Wno-unused-private-field
-
-LOCAL_SRC_FILES := \
-			sensors.cpp \
-			SensorBase.cpp \
-			SocketSensor.cpp
-
-LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
+LOCAL_SHARED_LIBRARIES := liblog libcutils
+LOCAL_HEADER_LIBRARIES := libhardware_headers
+LOCAL_MULTILIB := both
+# LOCAL_C_INCLUDES += ./
+LOCAL_SRC_FILES := sensors_vhal.c
 
 include $(BUILD_SHARED_LIBRARY)
-
-
-include $(CLEAR_VARS)
-
-LOCAL_MODULE := test_sensor
-
-LOCAL_MODULE_RELATIVE_PATH := hw
-
-LOCAL_MODULE_TAGS := optional
-
-LOCAL_CFLAGS += -DLOG_TAG=\"Sensors\" -DBIN -Wno-unused-parameter -Wno-unused-variable -Wno-unused-private-field
-
-LOCAL_SRC_FILES := test.cpp\
-			SensorBase.cpp \
-			sensors.cpp \
-			SocketSensor.cpp
-
-LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
-
-include $(BUILD_EXECUTABLE)
