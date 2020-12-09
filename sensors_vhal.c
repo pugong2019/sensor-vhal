@@ -72,6 +72,8 @@
 #define SENSOR_VHAL_PORT_PROP      "virtual.sensor.tcp.port"
 #define SENSOR_VHAL_PORT           8772
 
+#define DEBUG_OPTION false
+
 typedef struct {
     union {
         struct {
@@ -334,13 +336,16 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
     if(dev->fd < 0){
         return -EINVAL;
     }
-    char sensor_buf[256];
-    static double lastAccTime = 0;
-    static double lastGyroTime = 0;
-    static double lastMagTime = 0;
+
+#if DEBUG_OPTION
+    static double last_acc_time = 0;
+    static double last_gyro_time = 0;
+    static double last_mag_time = 0;
     static int64_t acc_count = 0;
     static int64_t gyr_count = 0;
     static int64_t mag_count = 0;
+#endif
+
     acgmsg_sensors_event_t new_sensor_events;
     sensors_event_t* events = dev->sensors;
     int len = -1;
@@ -364,14 +369,15 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
                 events[ID_ACCELERATION].timestamp = new_sensor_events.timestamp;
                 events[ID_ACCELERATION].type = SENSOR_TYPE_ACCELEROMETER;
 
-                // memcpy(dev->sensors+ID_ACCELERATION, &new_sensor_events, sizeof(sensors_event_t));
+#if DEBUG_OPTION
                 acc_count++;
                 if(acc_count%1000 == 0){
-                    ALOGD("[%-5d] Acc: %f,%f,%f, time = %.3f ms", acc_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-lastAccTime))/1000000.0);
+                    ALOGD("[%-5d] Acc: %f,%f,%f, time = %.3fms", acc_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-last_acc_time))/1000000.0);
                 }
-                lastAccTime = new_sensor_events.timestamp;
-                break;
+                last_acc_time = new_sensor_events.timestamp;
+#endif
 
+                break;
             case SENSOR_TYPE_GYROSCOPE:
                 new_sensors |= SENSORS_GYROSCOPE;
                 events[ID_GYROSCOPE].gyro.x = new_sensor_events.gyro.x;
@@ -380,12 +386,13 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
                 events[ID_GYROSCOPE].timestamp = new_sensor_events.timestamp;
                 events[ID_ACCELERATION].type = SENSOR_TYPE_GYROSCOPE;
 
-                // memcpy(dev->sensors+ID_GYROSCOPE, &new_sensor_events, sizeof(sensors_event_t));
+#if DEBUG_OPTION
                 gyr_count++;
                 if(gyr_count%1000 == 0){
-                    ALOGD("[%-5d] Gyr: %f,%f,%f, time = %.3f ms", gyr_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-lastAccTime))/1000000.0);
+                    ALOGD("[%-5d] Gyr: %f,%f,%f, time = %.3fms", gyr_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-last_gyro_time))/1000000.0);
                 }
-                lastGyroTime = new_sensor_events.timestamp;
+                last_gyro_time = new_sensor_events.timestamp;
+#endif
                 break;
 
             case SENSOR_TYPE_MAGNETIC_FIELD:
@@ -396,12 +403,13 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
                 events[ID_MAGNETIC_FIELD].timestamp = new_sensor_events.timestamp;
                 events[ID_ACCELERATION].type = SENSOR_TYPE_MAGNETIC_FIELD;
 
-                // memcpy(dev->sensors+ID_MAGNETIC_FIELD, &new_sensor_events, sizeof(sensors_event_t));
+#if DEBUG_OPTION
                 mag_count++;
                 if(mag_count%1000 == 0){
-                    ALOGD("[%-5d] Mag: %f,%f,%f, time = %.3f ms", mag_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-lastAccTime))/1000000.0);
+                    ALOGD("[%-5d] Mag: %f,%f,%f, time = %.3fms", mag_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-last_mag_time))/1000000.0);
                 }
-                lastMagTime = new_sensor_events.timestamp;
+                last_mag_time = new_sensor_events.timestamp;
+#endif
                 break;
 
             default:
