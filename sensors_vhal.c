@@ -72,6 +72,52 @@
 #define SENSOR_VHAL_PORT_PROP      "virtual.sensor.tcp.port"
 #define SENSOR_VHAL_PORT           8772
 
+typedef struct {
+    union {
+        struct {
+            float x;
+            float y;
+            float z;
+        };
+        struct {
+            float azimuth;
+            float pitch;
+            float roll;
+        };
+    };
+} acgmsg_sensors_vec_t;
+
+// ACG_MESSAGE_CLIENT_SENSOR payload
+//now AIC only support acceleration, magnetic, gyro
+typedef struct acgmsg_sensors_event_t {
+    /* sensor type */
+    int32_t type; // acgmsg_sensor_type_t
+    /* time is in nanosecond */
+    int64_t timestamp;
+    union {
+        union {
+            /* acceleration values are in meter per second per second (m/s^2) */
+            acgmsg_sensors_vec_t   acceleration;
+            /* magnetic vector values are in micro-Tesla (uT) */
+            acgmsg_sensors_vec_t   magnetic;
+            /* orientation values are in degrees */
+            acgmsg_sensors_vec_t   orientation;
+            /* gyroscope values are in rad/s */
+            acgmsg_sensors_vec_t   gyro;
+            /* temperature is in degrees centigrade (Celsius) */
+            float           temperature;
+            /* distance in centimeters */
+            float           distance;
+            /* light in SI lux units */
+            float           light;
+            /* pressure in hectopascal (hPa) */
+            float           pressure;
+            /* relative humidity in percent */
+            float           relative_humidity;
+        };
+    };
+} acgmsg_sensors_event_t;
+
 #define  SENSORS_LIST  \
     SENSOR_(ACCELERATION,"acceleration") \
     SENSOR_(GYROSCOPE,"gyroscope") \
@@ -295,14 +341,15 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
     static int64_t acc_count = 0;
     static int64_t gyr_count = 0;
     static int64_t mag_count = 0;
-    sensors_event_t new_sensor_events;
+    acgmsg_sensors_event_t new_sensor_events;
+    sensors_event_t* events = dev->sensors;
     int len = -1;
     uint32_t new_sensors = 0U;
-
     for(;;){ // make sure recv one event
         pthread_mutex_unlock(&dev->lock);
-        len = sensors_vhal_sock_recv(fd, &new_sensor_events, sizeof(sensors_event_t)); //block mode,recv one event per time
+        len = sensors_vhal_sock_recv(fd, &new_sensor_events, sizeof(acgmsg_sensors_event_t)); //block mode,recv one event per time
         pthread_mutex_lock(&dev->lock);
+
         if (len < 0) {
             ALOGE("sensors vhal recv data failed: %s ", strerror(errno));
             return -errno;
@@ -311,7 +358,13 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
         {
             case SENSOR_TYPE_ACCELEROMETER:
                 new_sensors |= SENSORS_ACCELERATION;
-                memcpy(dev->sensors+ID_ACCELERATION, &new_sensor_events, sizeof(sensors_event_t));
+                events[ID_ACCELERATION].acceleration.x = new_sensor_events.acceleration.x;
+                events[ID_ACCELERATION].acceleration.y = new_sensor_events.acceleration.y;
+                events[ID_ACCELERATION].acceleration.z = new_sensor_events.acceleration.z;
+                events[ID_ACCELERATION].timestamp = new_sensor_events.timestamp;
+                events[ID_ACCELERATION].type = SENSOR_TYPE_ACCELEROMETER;
+
+                // memcpy(dev->sensors+ID_ACCELERATION, &new_sensor_events, sizeof(sensors_event_t));
                 acc_count++;
                 if(acc_count%1000 == 0){
                     ALOGD("[%-5d] Acc: %f,%f,%f, time = %.3f ms", acc_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-lastAccTime))/1000000.0);
@@ -321,7 +374,13 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
 
             case SENSOR_TYPE_GYROSCOPE:
                 new_sensors |= SENSORS_GYROSCOPE;
-                memcpy(dev->sensors+ID_GYROSCOPE, &new_sensor_events, sizeof(sensors_event_t));
+                events[ID_GYROSCOPE].gyro.x = new_sensor_events.gyro.x;
+                events[ID_GYROSCOPE].gyro.y = new_sensor_events.gyro.y;
+                events[ID_GYROSCOPE].gyro.z = new_sensor_events.gyro.z;
+                events[ID_GYROSCOPE].timestamp = new_sensor_events.timestamp;
+                events[ID_ACCELERATION].type = SENSOR_TYPE_GYROSCOPE;
+
+                // memcpy(dev->sensors+ID_GYROSCOPE, &new_sensor_events, sizeof(sensors_event_t));
                 gyr_count++;
                 if(gyr_count%1000 == 0){
                     ALOGD("[%-5d] Gyr: %f,%f,%f, time = %.3f ms", gyr_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-lastAccTime))/1000000.0);
@@ -331,7 +390,13 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
 
             case SENSOR_TYPE_MAGNETIC_FIELD:
                 new_sensors |= SENSORS_MAGNETIC_FIELD;
-                memcpy(dev->sensors+ID_MAGNETIC_FIELD, &new_sensor_events, sizeof(sensors_event_t));
+                events[ID_MAGNETIC_FIELD].magnetic.x = new_sensor_events.magnetic.x;
+                events[ID_MAGNETIC_FIELD].magnetic.y = new_sensor_events.magnetic.y;
+                events[ID_MAGNETIC_FIELD].magnetic.z = new_sensor_events.magnetic.z;
+                events[ID_MAGNETIC_FIELD].timestamp = new_sensor_events.timestamp;
+                events[ID_ACCELERATION].type = SENSOR_TYPE_MAGNETIC_FIELD;
+
+                // memcpy(dev->sensors+ID_MAGNETIC_FIELD, &new_sensor_events, sizeof(sensors_event_t));
                 mag_count++;
                 if(mag_count%1000 == 0){
                     ALOGD("[%-5d] Mag: %f,%f,%f, time = %.3f ms", mag_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-lastAccTime))/1000000.0);
