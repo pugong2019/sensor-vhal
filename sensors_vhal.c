@@ -1,141 +1,22 @@
 /*
- * Copyright (C) 2009 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+** Copyright 2018 Intel Corporation
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+*/
+ 
+#include "sensors_vhal.h"
 
-/* this implements a sensors hardware library for the Android emulator.
- * the following code should be built as a shared library that will be
- * placed into /system/lib/hw/sensors.goldfish.so
- *
- * it will be loaded by the code in hardware/libhardware/hardware.c
- * which is itself called from com_android_server_SensorService.cpp
- */
-
-
-/* we connect with the emulator through the "sensors" qemud service
- */
-#define  SENSORS_SERVICE_NAME "sensors"
-
-// #define LOG_TAG "QemuSensors"
-
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <string.h>
-#include <log/log.h>
-#include <cutils/sockets.h>
-#include <hardware/sensors.h>
-#include <time.h>
-#include <cutils/properties.h>
-
-/** SENSOR IDS AND NAMES
- **/
-
-#define MAX_NUM_SENSORS 3
-
-#define SUPPORTED_SENSORS  ((1<<MAX_NUM_SENSORS)-1)
-
-#define  ID_BASE                        SENSORS_HANDLE_BASE
-#define  ID_ACCELERATION                (ID_BASE+0)
-#define  ID_GYROSCOPE                   (ID_BASE+1)
-#define  ID_MAGNETIC_FIELD              (ID_BASE+2)
-#define  ID_ORIENTATION                 (ID_BASE+3)
-#define  ID_TEMPERATURE                 (ID_BASE+4)
-#define  ID_PROXIMITY                   (ID_BASE+5)
-#define  ID_LIGHT                       (ID_BASE+6)
-#define  ID_PRESSURE                    (ID_BASE+7)
-#define  ID_HUMIDITY                    (ID_BASE+8)
-#define  ID_MAGNETIC_FIELD_UNCALIBRATED (ID_BASE+9)
-
-#define  SENSORS_ACCELERATION                 (1 << ID_ACCELERATION)
-#define  SENSORS_GYROSCOPE                    (1 << ID_GYROSCOPE)
-#define  SENSORS_MAGNETIC_FIELD               (1 << ID_MAGNETIC_FIELD)
-#define  SENSORS_ORIENTATION                  (1 << ID_ORIENTATION)
-#define  SENSORS_TEMPERATURE                  (1 << ID_TEMPERATURE)
-#define  SENSORS_PROXIMITY                    (1 << ID_PROXIMITY)
-#define  SENSORS_LIGHT                        (1 << ID_LIGHT)
-#define  SENSORS_PRESSURE                     (1 << ID_PRESSURE)
-#define  SENSORS_HUMIDITY                     (1 << ID_HUMIDITY)
-#define  SENSORS_MAGNETIC_FIELD_UNCALIBRATED  (1 << ID_MAGNETIC_FIELD_UNCALIBRATED)
-
-#define SENSOR_VHAL_PORT_PROP      "virtual.sensor.tcp.port"
-#define SENSOR_VHAL_PORT           8772
-
-#define DEBUG_OPTION false
-
-typedef struct {
-    union {
-        struct {
-            float x;
-            float y;
-            float z;
-        };
-        struct {
-            float azimuth;
-            float pitch;
-            float roll;
-        };
-    };
-} acgmsg_sensors_vec_t;
-
-// ACG_MESSAGE_CLIENT_SENSOR payload
-//now AIC only support acceleration, magnetic, gyro
-typedef struct acgmsg_sensors_event_t {
-    /* sensor type */
-    int32_t type; // acgmsg_sensor_type_t
-    /* time is in nanosecond */
-    int64_t timestamp;
-    union {
-        union {
-            /* acceleration values are in meter per second per second (m/s^2) */
-            acgmsg_sensors_vec_t   acceleration;
-            /* magnetic vector values are in micro-Tesla (uT) */
-            acgmsg_sensors_vec_t   magnetic;
-            /* orientation values are in degrees */
-            acgmsg_sensors_vec_t   orientation;
-            /* gyroscope values are in rad/s */
-            acgmsg_sensors_vec_t   gyro;
-            /* temperature is in degrees centigrade (Celsius) */
-            float           temperature;
-            /* distance in centimeters */
-            float           distance;
-            /* light in SI lux units */
-            float           light;
-            /* pressure in hectopascal (hPa) */
-            float           pressure;
-            /* relative humidity in percent */
-            float           relative_humidity;
-        };
-    };
-} acgmsg_sensors_event_t;
-
-#define  SENSORS_LIST  \
-    SENSOR_(ACCELERATION,"acceleration") \
-    SENSOR_(GYROSCOPE,"gyroscope") \
-    SENSOR_(MAGNETIC_FIELD,"magnetic-field") \
-
-static const struct {
-    const char*  name;
-    int          id; } _sensorIds[MAX_NUM_SENSORS] =
-{
-#define SENSOR_(x,y)  { y, ID_##x },
-    SENSORS_LIST
-#undef  SENSOR_
-};
-
-static const char* get_name_from_handle( int  id )
-{
+static const char* get_name_from_handle( int  id ) {
     int  nn;
     for (nn = 0; nn < MAX_NUM_SENSORS; nn++)
         if (id == _sensorIds[nn].id)
@@ -371,7 +252,7 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
 
 #if DEBUG_OPTION
                 acc_count++;
-                if(acc_count%1000 == 0){
+                if(acc_count%100 == 0){
                     ALOGD("[%-5d] Acc: %f,%f,%f, time = %.3fms", acc_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-last_acc_time))/1000000.0);
                 }
                 last_acc_time = new_sensor_events.timestamp;
@@ -388,7 +269,7 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
 
 #if DEBUG_OPTION
                 gyr_count++;
-                if(gyr_count%1000 == 0){
+                if(gyr_count%100 == 0){
                     ALOGD("[%-5d] Gyr: %f,%f,%f, time = %.3fms", gyr_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-last_gyro_time))/1000000.0);
                 }
                 last_gyro_time = new_sensor_events.timestamp;
@@ -405,7 +286,7 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
 
 #if DEBUG_OPTION
                 mag_count++;
-                if(mag_count%1000 == 0){
+                if(mag_count%100 == 0){
                     ALOGD("[%-5d] Mag: %f,%f,%f, time = %.3fms", mag_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-last_mag_time))/1000000.0);
                 }
                 last_mag_time = new_sensor_events.timestamp;
@@ -448,7 +329,7 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
 static int sensor_device_pick_pending_event_locked(SensorDevice* dev,
                                                    sensors_event_t*  event)
 {
-    uint32_t mask = dev->pending_sensors;
+    uint32_t mask = SUPPORTED_SENSORS & dev->pending_sensors;
     if (mask) {
         uint32_t i = 31 - __builtin_clz(mask);
         dev->pending_sensors &= ~(1U << i);

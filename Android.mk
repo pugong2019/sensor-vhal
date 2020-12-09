@@ -19,15 +19,14 @@ LOCAL_PATH := $(call my-dir)
 # hw/<SENSORS_HARDWARE_MODULE_ID>.<ro.hardware>.so
 
 include $(CLEAR_VARS)
-# LOCAL_VENDOR_MODULE := true
+LOCAL_VENDOR_MODULE := true
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := sensors.cic_cloud
 LOCAL_CFLAGS += -DLOG_TAG=\"SensorsHal\"
-# LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_HEADER_LIBRARIES := libhardware_headers
 LOCAL_MULTILIB := both
 # LOCAL_C_INCLUDES += ./
 LOCAL_SRC_FILES := sensors_vhal.c
-
 include $(BUILD_SHARED_LIBRARY)
