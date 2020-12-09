@@ -21,7 +21,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 # LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := sensors.cic_cloud
-LOCAL_CFLAGS += -DLOG_TAG=\"SensorsHal\" -Wno-unused-parameter -Wno-unused-variable -Wno-unused-private-field -Wno-unused-function -Wno-format
+LOCAL_CFLAGS += -DLOG_TAG=\"SensorsHal\"
 # LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils

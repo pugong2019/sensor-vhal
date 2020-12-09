@@ -586,11 +586,11 @@ static int sensor_device_set_delay(struct sensors_poll_device_t *dev0, int handl
 static int sensor_device_batch(
     struct sensors_poll_device_1* dev,
     int sensor_handle,
-    int flags,
+    int flags __unused,
     int64_t sampling_period_ns,
-    int64_t max_report_latency_ns) {
+    int64_t max_report_latency_ns __unused) {
+
     SensorDevice* dev0 = (void*)dev;
-    int ms = (int)(sampling_period_ns/1000000);
     int id = get_type_from_hanle(sensor_handle);
     if(id < 0){
         ALOGE("unknown handle (%d)", sensor_handle);
@@ -683,8 +683,6 @@ static const struct sensor_t sSensorListInit[] = {
           .reserved   = {}
         },
 };
-
-static struct sensor_t sSensorList[MAX_NUM_SENSORS];
 
 static int sensors__get_sensors_list(struct sensors_module_t* module __unused,
         struct sensor_t const** list)
