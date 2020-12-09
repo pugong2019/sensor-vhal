@@ -37,20 +37,12 @@
 #include <cutils/sockets.h>
 #include <hardware/sensors.h>
 #include <time.h>
-// #include "sensors_vhal.h"
-
-#if 1
-#define  D(...)  ALOGD(__VA_ARGS__)
-#else
-#define  D(...)  ((void)0)
-#endif
-
-#define  E(...)  ALOGE(__VA_ARGS__)
+#include <cutils/properties.h>
 
 /** SENSOR IDS AND NAMES
  **/
 
-#define MAX_NUM_SENSORS 4
+#define MAX_NUM_SENSORS 3
 
 #define SUPPORTED_SENSORS  ((1<<MAX_NUM_SENSORS)-1)
 
@@ -77,11 +69,13 @@
 #define  SENSORS_HUMIDITY                     (1 << ID_HUMIDITY)
 #define  SENSORS_MAGNETIC_FIELD_UNCALIBRATED  (1 << ID_MAGNETIC_FIELD_UNCALIBRATED)
 
+#define SENSOR_VHAL_PORT_PROP      "virtual.sensor.tcp.port"
+#define SENSOR_VHAL_PORT           8772
+
 #define  SENSORS_LIST  \
     SENSOR_(ACCELERATION,"acceleration") \
     SENSOR_(GYROSCOPE,"gyroscope") \
     SENSOR_(MAGNETIC_FIELD,"magnetic-field") \
-    SENSOR_(LIGHT, "light") \
 
 static const struct {
     const char*  name;
@@ -108,12 +102,17 @@ static int64_t now_ns(void) {
     return (int64_t)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
-#define SENSOR_PORT 16666
-
 static __inline__ int
 create_server_socket() {
     static int server_fd = -1, client_fd = -1;
     ALOGD("setup sensors vhal server socket ...");
+    char buf[PROPERTY_VALUE_MAX] = {
+            '\0',
+    };
+    int virtual_sensor_port = SENSOR_VHAL_PORT;
+    if (property_get(SENSOR_VHAL_PORT_PROP, buf, NULL) > 0) {
+        virtual_sensor_port = atoi(buf);
+    }
 
     if(server_fd == -1 || client_fd == -1){
         int enable = 1;
@@ -126,7 +125,7 @@ create_server_socket() {
         }
         memset(&server_addr, 0, sizeof(server_addr));
         server_addr.sin_family = AF_INET;
-        server_addr.sin_port = htons(SENSOR_PORT);
+        server_addr.sin_port = htons(virtual_sensor_port);
         server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
         if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
@@ -140,7 +139,7 @@ create_server_socket() {
             return -1;
         }
 
-        ALOGD("sensors vhal start to listen [%d]", SENSOR_PORT);
+        ALOGD("sensors vhal start to listen [%d]", virtual_sensor_port);
         if(listen(server_fd, 20) == -1) {
             ALOGE("listen failed");
             close(server_fd);
@@ -268,10 +267,6 @@ static int get_type_from_hanle(int handle){
     case ID_MAGNETIC_FIELD:
         id = SENSOR_TYPE_MAGNETIC_FIELD;
         break;
-    case ID_LIGHT:
-        id = SENSOR_TYPE_LIGHT;
-        break;
-
     default:
         ALOGE("unknown handle (%d)", handle);
         return -EINVAL;
@@ -343,17 +338,10 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
                 }
                 lastMagTime = new_sensor_events.timestamp;
                 break;
-            // case SENSOR_TYPE_LIGHT:
-            //     new_sensors |= SENSORS_LIGHT;
-            //     memcpy(dev->sensors+ID_LIGHT, new_sensor_events, sizeof(sensors_event_t));
-            //     break;
-
-            case SENSOR_TYPE_META_DATA:
-                continue;
 
             default:
-                ALOGE("unsupported sensor type: %d", new_sensor_events.type);
-                return -EINVAL;
+                ALOGE("unsupported sensor type: %d, continuing to receive next event", new_sensor_events.type);
+                continue;
         }
         break;
     }
@@ -459,10 +447,9 @@ static int sensor_device_activate(struct sensors_poll_device_t *dev0, int handle
         ALOGE("unknown handle(%d)", handle);
         return -EINVAL;
     }
-    
+
     sensor_config_msg_t sensor_config_msg;
     memset(&sensor_config_msg, 0, sizeof(sensor_config_msg_t));
-
     sensor_config_msg.cmd_type = CMD_SENSOR_ACTIVATE;
     sensor_config_msg.enabled = enabled;
     sensor_config_msg.sensor_type = id;
@@ -471,7 +458,6 @@ static int sensor_device_activate(struct sensors_poll_device_t *dev0, int handle
     pthread_mutex_lock(&dev->lock);
     int ret = sensor_device_send_config_msg(dev, &sensor_config_msg, sizeof(sensor_config_msg_t));
     pthread_mutex_unlock(&dev->lock);
-
     if (ret < 0) {
         ALOGE("could not send activate command: %s", strerror(-ret));
         return -errno;
@@ -502,7 +488,6 @@ static int sensor_device_set_delay(struct sensors_poll_device_t *dev0, int handl
 {
     SensorDevice* dev = (void*)dev0;
 
-    pthread_mutex_lock(&dev->lock);  
     sensor_config_msg_t sensor_config_msg;
     memset(&sensor_config_msg, 0, sizeof(sensor_config_msg_t));
     int id = get_type_from_hanle(handle);
@@ -514,10 +499,9 @@ static int sensor_device_set_delay(struct sensors_poll_device_t *dev0, int handl
     sensor_config_msg.cmd_type = CMD_SENSOR_BATCH;
     sensor_config_msg.sensor_type = id;
     sensor_config_msg.sample_period = (int32_t)(ns/1000000);
-
     ALOGD("set_delay: sensor type=%d, handle=%s(%d), sample_period=%dms", sensor_config_msg.sensor_type, get_name_from_handle(handle), handle, sensor_config_msg.sample_period);
+    pthread_mutex_lock(&dev->lock);
     int ret = sensor_device_send_config_msg(dev, &sensor_config_msg, sizeof(sensor_config_msg)); 
-
     pthread_mutex_unlock(&dev->lock);
     if (ret < 0) {
         ALOGE("could not send batch command: %s", strerror(-ret));
@@ -544,9 +528,11 @@ static int sensor_device_batch(
     sensor_config_msg.cmd_type = CMD_SENSOR_BATCH;
     sensor_config_msg.sensor_type = id;
     sensor_config_msg.sample_period = (int32_t)(sampling_period_ns/1000000);
-    // sensor_device_activate(dev, sensor_handle, 1);
-    ALOGD("batch: sensor type=%d, handle=%s(%d), sample_period=%dms", sensor_config_msg.sensor_type, get_name_from_handle(sensor_handle), sensor_handle, sensor_config_msg.sample_period);
+
+    sensor_device_activate((struct sensors_poll_device_t *)dev, sensor_handle, 1);  //before batch, make sure the sensor have been enabled
+
     pthread_mutex_lock(&dev0->lock);  
+    ALOGD("batch: sensor type=%d, handle=%s(%d), sample_period=%dms", sensor_config_msg.sensor_type, get_name_from_handle(sensor_handle), sensor_handle, sensor_config_msg.sample_period);
     int ret = sensor_device_send_config_msg(dev0, &sensor_config_msg, sizeof(sensor_config_msg)); 
     pthread_mutex_unlock(&dev0->lock);
 
@@ -621,24 +607,6 @@ static const struct sensor_t sSensorListInit[] = {
           .stringType = "android.sensor.magnetic_field",
           .requiredPermission = 0,
           .flags = SENSOR_FLAG_CONTINUOUS_MODE,
-          .reserved   = {}
-        },
-
-        { .name       = "AIC Light sensor",
-          .vendor     = "Intel ACGSS",
-          .version    = 1,
-          .handle     = ID_LIGHT,
-          .type       = SENSOR_TYPE_LIGHT,
-          .maxRange   = 40000.0f,
-          .resolution = 1.0f,
-          .power      = 20.0f,
-          .minDelay   = 10000,
-          .maxDelay   = 500 * 1000,
-          .fifoReservedEventCount = 0,
-          .fifoMaxEventCount =   0,
-          .stringType = "android.sensor.light",
-          .requiredPermission = 0,
-          .flags = SENSOR_FLAG_ON_CHANGE_MODE,
           .reserved   = {}
         },
 };
