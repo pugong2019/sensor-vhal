@@ -15,106 +15,7 @@
 */
  
 #include "sensors_vhal.h"
-
-static const char* get_name_from_handle( int  id ) {
-    int  nn;
-    for (nn = 0; nn < MAX_NUM_SENSORS; nn++)
-        if (id == _sensorIds[nn].id)
-            return _sensorIds[nn].name;
-    return "<UNKNOWN>";
-}
-
-/* return the current time in nanoseconds */
-static int64_t now_ns(void) {
-    struct timespec  ts;
-    clock_gettime(CLOCK_BOOTTIME, &ts);
-    return (int64_t)ts.tv_sec * 1000000000 + ts.tv_nsec;
-}
-
-static __inline__ int
-create_server_socket() {
-    static int server_fd = -1, client_fd = -1;
-    ALOGD("setup sensors vhal server socket ...");
-    char buf[PROPERTY_VALUE_MAX] = {
-            '\0',
-    };
-    int virtual_sensor_port = SENSOR_VHAL_PORT;
-    if (property_get(SENSOR_VHAL_PORT_PROP, buf, NULL) > 0) {
-        virtual_sensor_port = atoi(buf);
-    }
-
-    if(server_fd == -1 || client_fd == -1){
-        int enable = 1;
-        struct	sockaddr_in server_addr;
-        server_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-        if(server_fd < 0){
-            ALOGE("create socket failed!");
-            return -1;
-        }
-        memset(&server_addr, 0, sizeof(server_addr));
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_port = htons(virtual_sensor_port);
-        server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
-            ALOGE("[err] server_fd reuse");
-            close(server_fd);
-        }
-
-        if(bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
-            ALOGE("bind failed: %s", strerror(errno));
-            close(server_fd);
-            return -1;
-        }
-
-        ALOGD("sensors vhal start to listen [%d]", virtual_sensor_port);
-        if(listen(server_fd, 20) == -1) {
-            ALOGE("listen failed");
-            close(server_fd);
-            return -1;
-        }
-
-        struct  sockaddr_in client_addr;
-        socklen_t client_addr_len = sizeof(client_addr);
-        ALOGD("waiting for client connected...");
-        if( (client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len)) == -1) { 
-            ALOGD("accept failed: %s", strerror(errno));
-            close(server_fd);
-            return -1;
-        }
-        ALOGD("client connected successfully");
-    }
-    return client_fd;
-}
-
-static __inline__ int
-sensors_vhal_sock_send(int fd, const void*  msg, int  msglen) {
-    if (msglen < 0)
-        msglen = strlen((const char*)msg);
-
-    if (msglen == 0)
-        return 0;
-    int wr_len = write(fd, msg, msglen);
-    return wr_len;
-}
-
-static __inline__ int
-sensors_vhal_sock_recv(int fd, void* msg, int msgsize) {
-    size_t left_size = msgsize;
-    int total_size = 0;
-    uint8_t *ptr = msg;
-    while (left_size > 0){
-        int ret = read(fd, ptr, left_size);
-        if(ret < 0){
-            return -1;
-        }
-        ptr += ret;
-        left_size -= ret;
-        total_size += ret;
-    }
-    return total_size;
-}
+#include "sock_utils.h"
 
 #define CMD_SENSOR_BATCH      0x11
 #define CMD_SENSOR_ACTIVATE   0x22
@@ -137,47 +38,53 @@ typedef struct SensorDevice {
     int64_t                       time_start;
     int64_t                       time_offset;
     uint32_t                      active_sensors;
-    int                           fd;
     int                           flush_count[MAX_NUM_SENSORS];
     pthread_mutex_t               lock;
+    SockServer*                   socket_server;
 } SensorDevice;
 
-static int sensor_device_get_socket_fd() {
-    /* Create connection to service on first call */
-    int fd = create_server_socket();
-    if (fd < 0) {
-        int ret = -errno;
-        ALOGE("could not build connection with sensor client: %s", strerror(-ret));
-        return ret;
-    }
-    return fd;
+void client_connected_callback(SockServer* sock, sock_client_proxy_t* client){
+    ALOGE("sensors client connected successfully");
+}
+
+static const char* get_name_from_handle( int  id ) {
+    int  nn;
+    for (nn = 0; nn < MAX_NUM_SENSORS; nn++)
+        if (id == _sensorIds[nn].id)
+            return _sensorIds[nn].name;
+    return "<UNKNOWN>";
+}
+
+/* return the current time in nanoseconds */
+static int64_t now_ns(void) {
+    struct timespec  ts;
+    clock_gettime(CLOCK_BOOTTIME, &ts);
+    return (int64_t)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
 /* Send a command to the sensors virtual device. |dev| is a device instance and
  * |cmd| is a zero-terminated command string. Return 0 on success, or -errno
  * on failure. */
 static int sensor_device_send_config_msg(SensorDevice* dev, const void* cmd, size_t len) {
-    int fd = dev->fd;
-    if (fd < 0) {
-        return -errno;
+    sock_client_proxy_t* client = dev->socket_server->get_sock_client();
+    if(!client){
+        // ALOGW("client has not connected to sensors vhal server, do nothing"); //ignore it if the client has not connected to server
+        return 0; // set 0 as success. or SensorService may crash
     }
-
-    int ret = sensors_vhal_sock_send(fd, cmd, len);
+    int ret = dev->socket_server->send_data(client, cmd, len);
     if (ret < 0) {
         ret = -errno;
-        ALOGE("%s(fd=%d): ERROR: %s", __FUNCTION__, fd, strerror(errno));
+        ALOGE("%s: ERROR: %s", __FUNCTION__, strerror(errno));
     }
     return ret;
 }
 
 static int sensor_device_close(struct hw_device_t* dev0)
 {
-    SensorDevice* dev = (void*)dev0;
-    // Assume that there are no other threads blocked on poll()
-    if (dev->fd >= 0) {
-        close(dev->fd);
-        dev->fd = -1;
-    }
+    ALOGE("close sensor device");
+    SensorDevice* dev = (SensorDevice*)dev0;
+    dev->socket_server->stop();
+    dev->socket_server->join();
     pthread_mutex_destroy(&dev->lock);
     free(dev);
     return 0;
@@ -203,7 +110,7 @@ static int get_type_from_hanle(int handle){
     return id;
 }
 
-/* Return an array of sensor data. This function blocks until there is sensor
+/* Return an array of sensor data. This function blocks until there are sensor
  * related events to report. On success, it will write the events into the
  * |data| array, which contains |count| items. The function returns the number
  * of events written into the array, which shall never be greater than |count|.
@@ -213,11 +120,6 @@ static int get_type_from_hanle(int handle){
  */
 
 static int sensor_device_poll_event_locked(SensorDevice* dev){
-    int fd = dev->fd;
-    if(dev->fd < 0){
-        return -EINVAL;
-    }
-
 #if DEBUG_OPTION
     static double last_acc_time = 0;
     static double last_gyro_time = 0;
@@ -231,13 +133,22 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
     sensors_event_t* events = dev->sensors;
     int len = -1;
     uint32_t new_sensors = 0U;
+    sock_client_proxy_t* client = dev->socket_server->get_sock_client();
+
     for(;;){ // make sure recv one event
+        if(!client){
+            pthread_mutex_unlock(&dev->lock);
+            usleep(2*1000); //sleep and wait the client connected to server, and release the lock
+            pthread_mutex_lock(&dev->lock);
+            client = dev->socket_server->get_sock_client(); //require the lock
+            continue;
+        }
         pthread_mutex_unlock(&dev->lock);
-        len = sensors_vhal_sock_recv(fd, &new_sensor_events, sizeof(acgmsg_sensors_event_t)); //block mode,recv one event per time
+        len = dev->socket_server->recv_data(client, &new_sensor_events, sizeof(acgmsg_sensors_event_t), SOCK_BLOCK_MODE);
         pthread_mutex_lock(&dev->lock);
 
         if (len < 0) {
-            ALOGE("sensors vhal recv data failed: %s ", strerror(errno));
+            ALOGE("sensors vhal receive data failed: %s ", strerror(errno));
             return -errno;
         }
         switch (new_sensor_events.type)
@@ -257,8 +168,8 @@ static int sensor_device_poll_event_locked(SensorDevice* dev){
                 }
                 last_acc_time = new_sensor_events.timestamp;
 #endif
-
                 break;
+
             case SENSOR_TYPE_GYROSCOPE:
                 new_sensors |= SENSORS_GYROSCOPE;
                 events[ID_GYROSCOPE].gyro.x = new_sensor_events.gyro.x;
@@ -358,7 +269,7 @@ static int sensor_device_pick_pending_event_locked(SensorDevice* dev,
 static int sensor_device_poll(struct sensors_poll_device_t *dev0,
                               sensors_event_t* data, int count)
 {
-    SensorDevice* dev = (void*)dev0;
+    SensorDevice* dev = (SensorDevice*)dev0;
     if (count <= 0) {
         return -EINVAL;
     }
@@ -395,7 +306,7 @@ out:
 }
 
 static int sensor_device_activate(struct sensors_poll_device_t *dev0, int handle, int enabled) {
-    SensorDevice* dev = (void*)dev0;
+    SensorDevice* dev = (SensorDevice*)dev0;
     int id = get_type_from_hanle(handle);
     if(id < 0){
         ALOGE("unknown handle(%d)", handle);
@@ -420,7 +331,7 @@ static int sensor_device_activate(struct sensors_poll_device_t *dev0, int handle
 }
 
 static int sensor_device_flush(struct sensors_poll_device_1* dev0, int handle) {
-    SensorDevice* dev = (void*)dev0;
+    SensorDevice* dev = (SensorDevice*)dev0;
     pthread_mutex_lock(&dev->lock);
     if ((dev->pending_sensors & (1U << handle)) && dev->sensors[handle].type == SENSOR_TYPE_META_DATA) {
         (dev->flush_count[handle])++;
@@ -440,7 +351,7 @@ static int sensor_device_flush(struct sensors_poll_device_1* dev0, int handle) {
 
 static int sensor_device_set_delay(struct sensors_poll_device_t *dev0, int handle __unused, int64_t ns)
 {
-    SensorDevice* dev = (void*)dev0;
+    SensorDevice* dev = (SensorDevice*)dev0;
 
     sensor_config_msg_t sensor_config_msg;
     memset(&sensor_config_msg, 0, sizeof(sensor_config_msg_t));
@@ -471,7 +382,7 @@ static int sensor_device_batch(
     int64_t sampling_period_ns,
     int64_t max_report_latency_ns __unused) {
 
-    SensorDevice* dev0 = (void*)dev;
+    SensorDevice* dev0 = (SensorDevice*)dev;
     int id = get_type_from_hanle(sensor_handle);
     if(id < 0){
         ALOGE("unknown handle (%d)", sensor_handle);
@@ -568,11 +479,6 @@ static const struct sensor_t sSensorListInit[] = {
 static int sensors__get_sensors_list(struct sensors_module_t* module __unused,
         struct sensor_t const** list)
 {
-    int client_fd = create_server_socket();
-    if(client_fd < 0 ) {
-        ALOGE("%s: no socket connection", __FUNCTION__);
-        return -1;
-    }
     *list = sSensorListInit;
     ALOGD("get sensor list, support %d sensors", MAX_NUM_SENSORS);
     return MAX_NUM_SENSORS;
@@ -584,7 +490,7 @@ static int open_sensors(const struct hw_module_t* module, const char* name, stru
     int  status = -EINVAL;
     ALOGD("open_sensors");
     if (!strcmp(name, SENSORS_HARDWARE_POLL)) {
-        SensorDevice *dev = malloc(sizeof(*dev));
+        SensorDevice *dev = (SensorDevice*)malloc(sizeof(*dev));
         memset(dev, 0, sizeof(*dev));
 
         dev->device.common.tag     = HARDWARE_DEVICE_TAG;
@@ -609,20 +515,21 @@ static int open_sensors(const struct hw_module_t* module, const char* name, stru
 #endif
         pthread_mutex_init(&dev->lock, NULL);
 
-        int fd = sensor_device_get_socket_fd();
-
-        if(fd < 0){
-            dev->fd = -1;
-            ALOGE("invalid socket fd: %s", __FUNCTION__);
-        }else{
-            dev->fd = fd;
+        // int fd = sensor_device_get_socket_fd();
+        char buf[PROPERTY_VALUE_MAX] = {'\0',};
+        int virtual_sensor_port = SENSOR_VHAL_PORT;
+        if (property_get(SENSOR_VHAL_PORT_PROP, buf, NULL) > 0) {
+            virtual_sensor_port = atoi(buf);
         }
+        dev->socket_server = new SockServer(virtual_sensor_port);
+        dev->socket_server->register_connected_callback(client_connected_callback);
+        dev->socket_server->start();
+
         *device = &dev->device.common;
         status  = 0;
     };
     return status;
 }
-
 
 static struct hw_module_methods_t sensors_module_methods = {
     .open = open_sensors

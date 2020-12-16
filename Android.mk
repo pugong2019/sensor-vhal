@@ -20,13 +20,20 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_VENDOR_MODULE := true
+LOCAL_CFLAGS    += -Wno-unused-parameter -Wno-macro-redefined
+LOCAL_CFLAGS += -std=c++11
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/sock_utils/include
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := sensors.cic_cloud
-LOCAL_CFLAGS += -DLOG_TAG=\"SensorsHal\"
+LOCAL_CFLAGS += -DLOG_TAG=\"sensors_vhal\"
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_HEADER_LIBRARIES := libhardware_headers
 LOCAL_MULTILIB := both
 # LOCAL_C_INCLUDES += ./
-LOCAL_SRC_FILES := sensors_vhal.c
+LOCAL_SRC_FILES := \
+		sensors_vhal.cpp \
+		sock_utils/sock_client.cpp \
+		sock_utils/sock_server.cpp \
+		sock_utils/sock_utils.cpp
 include $(BUILD_SHARED_LIBRARY)
