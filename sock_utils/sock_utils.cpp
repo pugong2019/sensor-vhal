@@ -125,9 +125,9 @@ int SockServer::check_new_connection() {
  * @return 0 for failure, (instance + 1) for disconnect instance, 0 for success
  */
 int32_t SockServer::check_new_message() {
+
     if (sock_server_clients_readable(m_server, m_client_status_check_timeout) != SOCK_TRUE)
         return -1;
-
     for (int i = 0; i<MAX_CLIENTS; i++) {
         if (m_clients[i] == nullptr) continue;
         switch (sock_server_check_connect(m_server, m_clients[i])) {
@@ -138,20 +138,19 @@ int32_t SockServer::check_new_message() {
                 break;
 
             case disconnect:
-                ALOGI("[DEBUG] client %d disconnected, close it", m_clients[i]->id);
                 if(m_disconnected_callback){
                     m_disconnected_callback(this, m_clients[i]);
                 }
-                // {
-                //     std::lock_guard<std::mutex> lock(m_pclient_mutex_);
-                //     sock_server_close_client(m_server, m_clients[i]);
-                //     if(m_pclient_ == m_clients[i]) m_pclient_ = nullptr;
-                // }
-                // ALOGI("client %d disconnected, close it", m_clients[i]->id);
-                // m_clients[i] = nullptr;
-                // m_ncount--;
-                // if (m_ncount == 0) return i + 1;
-                // break;
+                {
+                    std::lock_guard<std::mutex> lock(m_pclient_mutex_);
+                    sock_server_close_client(m_server, m_clients[i]);
+                    if(m_pclient_ == m_clients[i]) m_pclient_ = nullptr;
+                }
+                ALOGI("client %d disconnected, close it", m_clients[i]->id);
+                m_clients[i] = nullptr;
+                m_ncount--;
+                if (m_ncount == 0) return i + 1;
+                break;
 
             default:
                 break;
