@@ -53,8 +53,6 @@ SockServer::~SockServer() {
         delete m_clients[i];
         m_clients[i] = nullptr;
     }
-    ///bug double free, 
-   // delete m_pclient_;
     m_thread.reset();
 
     m_pclient_ = nullptr;
@@ -100,18 +98,14 @@ sock_client_proxy_t* SockServer::get_sock_client(){
 
 int SockServer::check_new_connection() {
     if(sock_server_has_newconn(m_server, m_connection_timeout_ms)) {
-        ALOGI("SockServer has new connection!");
         auto client = sock_server_create_client(m_server);
-
         if(client != nullptr) {
-            //choose first as default
             {
                 std::lock_guard<std::mutex> lock(m_pclient_mutex_);
-                if(m_pclient_==nullptr){
+                if(m_pclient_ == nullptr) { //choose first as default
                     m_pclient_ = client;
                 }
             }
-
 
             m_clients[client->id] = client;
             m_ncount++;
@@ -139,34 +133,25 @@ int32_t SockServer::check_new_message() {
         switch (sock_server_check_connect(m_server, m_clients[i])) {
             case readable:
                 if(m_listener_callback) {
-                    {
-                        // why reset the default client
-                        std::lock_guard<std::mutex> lock(m_pclient_mutex_);
-                        m_pclient_ = m_clients[i];
-                    }
-
                     m_listener_callback(this, m_clients[i]);
                 }
                 break;
 
             case disconnect:
-                ALOGI("client %d disconnected, close it", m_clients[i]->id);
-                {
-                    AutoMutex lck(m_client_sync_mutex);
-                    if(m_disconnected_callback) m_disconnected_callback(this, m_clients[i]);
-                    sock_server_close_client(m_server, m_clients[i]);
+                ALOGI("[DEBUG] client %d disconnected, close it", m_clients[i]->id);
+                if(m_disconnected_callback){
+                    m_disconnected_callback(this, m_clients[i]);
                 }
-
-                {
-                    std::lock_guard<std::mutex> lock(m_pclient_mutex_);
-                    if(m_pclient_ == m_clients[i]) m_pclient_ = nullptr;
-                }
-
-                m_clients[i] = nullptr;
-
-                m_ncount--;
-                if (m_ncount == 0) return i + 1;
-                break;
+                // {
+                //     std::lock_guard<std::mutex> lock(m_pclient_mutex_);
+                //     sock_server_close_client(m_server, m_clients[i]);
+                //     if(m_pclient_ == m_clients[i]) m_pclient_ = nullptr;
+                // }
+                // ALOGI("client %d disconnected, close it", m_clients[i]->id);
+                // m_clients[i] = nullptr;
+                // m_ncount--;
+                // if (m_ncount == 0) return i + 1;
+                // break;
 
             default:
                 break;
@@ -311,7 +296,7 @@ int SockServer::recv_data(const sock_client_proxy_t* client, void* data, int len
                     usleep(1000);
                     continue;
                 }else {
-                    ALOGE("socket error: errno[%d]:%s", errno, strerror(errno));
+                    ALOGE("socket error: errno[%d]:%s, client fd: %d", errno, strerror(errno), m_server->client_slots[client->id]);
                     break;
                 }
             } 

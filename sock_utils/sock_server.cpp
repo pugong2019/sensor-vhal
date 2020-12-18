@@ -297,6 +297,8 @@ sock_client_proxy_t* sock_server_create_client (sock_server_t* server) {
     }
 
     server->client_slots[id] = clientfd;
+    sock_log("client fd = %d", clientfd);
+
     p_client->id = id;
     p_client->m_msg_buf.reserve(CLIENT_BUF_CAPACITY);
 
@@ -411,12 +413,15 @@ sock_conn_status_t sock_server_check_connect(sock_server_t* server, const sock_c
     int clientfd = server->client_slots[p_client->id];
     if(FD_ISSET(clientfd, &server->rfds)) {
         int nread = 0;
-        ioctl(clientfd, FIONREAD, &nread);
-
-        if(nread != 0) {
-            result = readable;
+        if(-1 != ioctl(clientfd, FIONREAD, &nread)){
+            if(nread != 0) {
+                result = readable;
+            } else {
+                result = disconnect;
+            }
         } else {
-            result = disconnect;
+            sock_log("server ioctl error: %d, %s!", errno, strerror(errno));
+            result = normal;
         }
     } else {
         result = normal;

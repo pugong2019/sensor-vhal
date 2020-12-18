@@ -5,6 +5,9 @@
 #include <errno.h>
 #include <string.h>
 #include <log/log.h>
+#include <queue>
+#include <vector>
+#include <condition_variable>
 #include <cutils/sockets.h>
 #include <hardware/sensors.h>
 #include <time.h>
