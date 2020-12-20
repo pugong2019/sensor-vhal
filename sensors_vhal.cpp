@@ -19,24 +19,24 @@
 using namespace::std::placeholders;
 
 SensorDevice::SensorDevice(){
-    pthread_mutex_init(&lock, NULL);
+    pthread_mutex_init(&m_lock, NULL);
     for (int idx = 0; idx < MAX_NUM_SENSORS; idx++) {
-        sensors[idx].type = SENSOR_TYPE_META_DATA + 1;
-        flush_count[idx] = 0;
+        m_sensors[idx].type = SENSOR_TYPE_META_DATA + 1;
+        m_flush_count[idx] = 0;
     }
     char buf[PROPERTY_VALUE_MAX] = {'\0',};
     int virtual_sensor_port = SENSOR_VHAL_PORT;
     if (property_get(SENSOR_VHAL_PORT_PROP, buf, NULL) > 0) {
         virtual_sensor_port = atoi(buf);
     }
-    socket_server = new SockServer(virtual_sensor_port);
-    socket_server->register_listener_callback(std::bind(&SensorDevice::sensor_event_callback, this, _1, _2));
-    socket_server->start();
+    m_socket_server = new SockServer(virtual_sensor_port);
+    m_socket_server->register_listener_callback(std::bind(&SensorDevice::sensor_event_callback, this, _1, _2));
+    m_socket_server->start();
 }
 
 SensorDevice::~SensorDevice(){
-    pthread_mutex_destroy(&lock);
-    delete socket_server;
+    pthread_mutex_destroy(&m_lock);
+    delete m_socket_server;
 }
 
 const char* SensorDevice::get_name_from_handle( int  id ) {
@@ -55,11 +55,11 @@ int64_t SensorDevice::now_ns(void) {
 }
 
 int SensorDevice::sensor_device_send_config_msg(const void* cmd, size_t len) {
-    sock_client_proxy_t* client = socket_server->get_sock_client();
+    sock_client_proxy_t* client = m_socket_server->get_sock_client();
     if(!client){
         return 0; // set 0 as success. or SensorService may crash
     }
-    int ret = socket_server->send_data(client, cmd, len);
+    int ret = m_socket_server->send_data(client, cmd, len);
     if (ret < 0) {
         ret = -errno;
         ALOGE("%s: ERROR: %s", __FUNCTION__, strerror(errno));
@@ -107,20 +107,20 @@ int SensorDevice::sensor_device_poll_event_locked(){
 #endif
 
     acgmsg_sensors_event_t new_sensor_events;
-    sensors_event_t* events = sensors;
+    sensors_event_t* events = m_sensors;
     uint32_t new_sensors = 0U;
 
  // make sure recv one event
     for(;;){
-        sock_client_proxy_t* client = socket_server->get_sock_client();
+        sock_client_proxy_t* client = m_socket_server->get_sock_client();
         if(!client){
-            pthread_mutex_unlock(&lock);
+            pthread_mutex_unlock(&m_lock);
             // ALOGE("client has not connected yet, wait 2ms");
             usleep(2*1000);   //sleep and wait the client connected to server, and release the lock before sleep
-            pthread_mutex_lock(&lock);
+            pthread_mutex_lock(&m_lock);
             continue;
         }
-        pthread_mutex_unlock(&lock);  //waitging for sensor message
+        pthread_mutex_unlock(&m_lock);  //waitging for sensor message
         {
             std::unique_lock<std::mutex> lck(m_msg_queue_mutex);
             if(m_msg_queue.empty()){
@@ -130,7 +130,7 @@ int SensorDevice::sensor_device_poll_event_locked(){
             m_msg_queue.pop();
             m_msg_queue_empty_cv.notify_all();
         }
-        pthread_mutex_lock(&lock);
+        pthread_mutex_lock(&m_lock);
         switch (new_sensor_events.type)
         {
             case SENSOR_TYPE_ACCELEROMETER:
@@ -196,40 +196,40 @@ int SensorDevice::sensor_device_poll_event_locked(){
         * --- we don't believe in events from the future anyway.
     */
     if (new_sensors) {
-        pending_sensors |= new_sensors;
+        m_pending_sensors |= new_sensors;
         int64_t remote_timestamp = new_sensor_events.timestamp;
         int64_t host_timestamp = now_ns();
-        if (time_start == 0) {
-            time_start  = host_timestamp;
-            time_offset = time_start - remote_timestamp;
+        if (m_time_start == 0) {
+            m_time_start  = host_timestamp;
+            m_time_offset = m_time_start - remote_timestamp;
         }
 
-        remote_timestamp += time_offset;
+        remote_timestamp += m_time_offset;
         if (remote_timestamp > host_timestamp) {
             remote_timestamp = host_timestamp;
         }
         while (new_sensors) {
             uint32_t i = 31 - __builtin_clz(new_sensors);
             new_sensors &= ~(1U << i);
-            sensors[i].timestamp = remote_timestamp;
+            events[i].timestamp = remote_timestamp;
         }
     }
     return 0;
 }
 
 int SensorDevice::sensor_device_pick_pending_event_locked(sensors_event_t*  event){
-    uint32_t mask = SUPPORTED_SENSORS & pending_sensors;
+    uint32_t mask = SUPPORTED_SENSORS & m_pending_sensors;
     if (mask) {
         uint32_t i = 31 - __builtin_clz(mask);
-        pending_sensors &= ~(1U << i);
-        *event = sensors[i];
-        if (sensors[i].type == SENSOR_TYPE_META_DATA) {
-            if (flush_count[i] > 0) {
-                (flush_count[i])--;
-                pending_sensors |= (1U << i);
+        m_pending_sensors &= ~(1U << i);
+        *event = m_sensors[i];
+        if (m_sensors[i].type == SENSOR_TYPE_META_DATA) {
+            if (m_flush_count[i] > 0) {
+                (m_flush_count[i])--;
+                m_pending_sensors |= (1U << i);
             } 
             else {
-                sensors[i].type = SENSOR_TYPE_META_DATA + 1;
+                m_sensors[i].type = SENSOR_TYPE_META_DATA + 1;
             }
         } else {
             event->sensor = i;
@@ -238,7 +238,7 @@ int SensorDevice::sensor_device_pick_pending_event_locked(sensors_event_t*  even
 
         return i;
     }
-    ALOGW("no sensor to return!!! pending_sensors=0x%08x", pending_sensors);
+    ALOGW("no sensor to return!!! m_pending_sensors=0x%08x", m_pending_sensors);
     // we may end-up in a busy loop, slow things down, just in case.
     usleep(1000);
     return -EINVAL;
@@ -246,8 +246,8 @@ int SensorDevice::sensor_device_pick_pending_event_locked(sensors_event_t*  even
 
 int SensorDevice::sensor_device_poll(sensors_event_t* data, int count) {
     int result = 0;
-    pthread_mutex_lock(&lock);
-    if (!pending_sensors) {
+    pthread_mutex_lock(&m_lock);
+    if (!m_pending_sensors) {
         /* Block until there are pending events. Note that this releases
          * the lock during the blocking call, then re-acquires it before
          * returning. */
@@ -259,7 +259,7 @@ int SensorDevice::sensor_device_poll(sensors_event_t* data, int count) {
     }
     /* Now read as many pending events as needed. */
     for (int i = 0; i < count; i++) {
-        if (!pending_sensors) {
+        if (!m_pending_sensors) {
             break;
         }
         int ret = sensor_device_pick_pending_event_locked(data);
@@ -273,7 +273,7 @@ int SensorDevice::sensor_device_poll(sensors_event_t* data, int count) {
         result++;
     }
 out:
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&m_lock);
     return result;
 }
 
@@ -296,9 +296,9 @@ int SensorDevice::sensor_device_activate(int handle, int enabled) {
     sensor_config_msg.sensor_type = id;
 
     ALOGI("activate: sensor type=%d, handle=%s(%d), enabled=%d", sensor_config_msg.sensor_type, get_name_from_handle(handle), handle, sensor_config_msg.enabled);
-    pthread_mutex_lock(&lock);
+    pthread_mutex_lock(&m_lock);
     int ret = sensor_device_send_config_msg(&sensor_config_msg, sizeof(sensor_config_msg_t));
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&m_lock);
     if (ret < 0) {
         ALOGE("could not send activate command: %s", strerror(-ret));
         return -errno;
@@ -307,20 +307,20 @@ int SensorDevice::sensor_device_activate(int handle, int enabled) {
 }
 
 int SensorDevice::sensor_device_flush(int handle) {
-    pthread_mutex_lock(&lock);
-    if ((pending_sensors & (1U << handle)) && sensors[handle].type == SENSOR_TYPE_META_DATA) {
-        (flush_count[handle])++;
+    pthread_mutex_lock(&m_lock);
+    if ((m_pending_sensors & (1U << handle)) && m_sensors[handle].type == SENSOR_TYPE_META_DATA) {
+        (m_flush_count[handle])++;
     } else {
-        flush_count[handle] = 0;
-        sensors[handle].version = META_DATA_VERSION;
-        sensors[handle].type = SENSOR_TYPE_META_DATA;
-        sensors[handle].sensor = 0;
-        sensors[handle].timestamp = 0;
-        sensors[handle].meta_data.sensor = handle;
-        sensors[handle].meta_data.what = META_DATA_FLUSH_COMPLETE;
-        pending_sensors |= (1U << handle);
+        m_flush_count[handle] = 0;
+        m_sensors[handle].version = META_DATA_VERSION;
+        m_sensors[handle].type = SENSOR_TYPE_META_DATA;
+        m_sensors[handle].sensor = 0;
+        m_sensors[handle].timestamp = 0;
+        m_sensors[handle].meta_data.sensor = handle;
+        m_sensors[handle].meta_data.what = META_DATA_FLUSH_COMPLETE;
+        m_pending_sensors |= (1U << handle);
     }
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&m_lock);
     return 0;
 }
 
@@ -337,9 +337,9 @@ int SensorDevice::sensor_device_set_delay(int handle, int64_t ns) {
     sensor_config_msg.sensor_type = id;
     sensor_config_msg.sample_period = (int32_t)(ns/1000000);
     ALOGD("set_delay: sensor type=%d, handle=%s(%d), sample_period=%dms", sensor_config_msg.sensor_type, get_name_from_handle(handle), handle, sensor_config_msg.sample_period);
-    pthread_mutex_lock(&lock);
+    pthread_mutex_lock(&m_lock);
     int ret = sensor_device_send_config_msg(&sensor_config_msg, sizeof(sensor_config_msg)); 
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&m_lock);
     if (ret < 0) {
         ALOGE("could not send batch command: %s", strerror(-ret));
         return -EINVAL;
@@ -364,10 +364,10 @@ int SensorDevice::sensor_device_batch(
 
     sensor_device_activate(sensor_handle, 1);  //before batch, make sure the sensor have been enabled
 
-    pthread_mutex_lock(&lock);
+    pthread_mutex_lock(&m_lock);
     ALOGI("batch: sensor type=%d, handle=%s(%d), sample_period=%dms", sensor_config_msg.sensor_type, get_name_from_handle(sensor_handle), sensor_handle, sensor_config_msg.sample_period);
     int ret = sensor_device_send_config_msg(&sensor_config_msg, sizeof(sensor_config_msg)); 
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&m_lock);
 
     if (ret < 0) {
         ALOGE("could not send batch command: %s", strerror(-ret));
@@ -375,6 +375,23 @@ int SensorDevice::sensor_device_batch(
     }
     return 0;
 }
+
+void SensorDevice::sensor_event_callback(SockServer *sock, sock_client_proxy_t* client){
+    acgmsg_sensors_event_t new_sensor_events;
+    int len = m_socket_server->recv_data(client, &new_sensor_events, sizeof(acgmsg_sensors_event_t), SOCK_BLOCK_MODE);
+    if (len <= 0) {
+        ALOGE("sensors vhal receive data failed: %s ", strerror(errno));
+       return;
+    }
+    std::unique_lock<std::mutex> lck(m_msg_queue_mutex);
+    while(m_msg_queue.size() > MAX_MSG_QUEUE_SIZE){
+        ALOGW("the msg queue is too large: %d, waiting processed...", (int)m_msg_queue.size());
+        m_msg_queue_empty_cv.wait(lck);
+    }
+    m_msg_queue.emplace(new_sensor_events);
+    m_msg_queue_ready_cv.notify_all();
+}
+
 
 static int sensor_poll_events(struct sensors_poll_device_t *dev0, sensors_event_t* data, int count) {
     if (count <= 0) {
@@ -534,20 +551,3 @@ struct sensors_module_t HAL_MODULE_INFO_SYM = {
     },
     .get_sensors_list = sensors__get_sensors_list
 };
-
-
-void SensorDevice::sensor_event_callback(SockServer *sock, sock_client_proxy_t* client){
-    acgmsg_sensors_event_t new_sensor_events;
-    int len = socket_server->recv_data(client, &new_sensor_events, sizeof(acgmsg_sensors_event_t), SOCK_BLOCK_MODE);
-    if (len <= 0) {
-        ALOGE("sensors vhal receive data failed: %s ", strerror(errno));
-       return;
-    }
-    std::unique_lock<std::mutex> lck(m_msg_queue_mutex);
-    while(m_msg_queue.size() > MAX_MSG_QUEUE_SIZE){
-        ALOGW("the msg queue is too large: %d, waiting processed...", (int)m_msg_queue.size());
-        m_msg_queue_empty_cv.wait(lck);
-    }
-    m_msg_queue.emplace(new_sensor_events);
-    m_msg_queue_ready_cv.notify_all();
-}

@@ -297,8 +297,6 @@ sock_client_proxy_t* sock_server_create_client (sock_server_t* server) {
     }
 
     server->client_slots[id] = clientfd;
-    sock_log("client fd = %d", clientfd);
-
     p_client->id = id;
     p_client->m_msg_buf.reserve(CLIENT_BUF_CAPACITY);
 

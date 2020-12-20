@@ -46,7 +46,7 @@
 #define SENSOR_VHAL_PORT_PROP      "virtual.sensor.tcp.port"
 #define SENSOR_VHAL_PORT           8772
 
-#define DEBUG_OPTION false
+#define DEBUG_OPTION          false
 #define CMD_SENSOR_BATCH      0x11
 #define CMD_SENSOR_ACTIVATE   0x22
 #define MAX_MSG_QUEUE_SIZE    128
@@ -132,13 +132,13 @@ public:
     int sensor_device_batch(int sensor_handle, int64_t sampling_period_ns);
 
 private:
-    sensors_event_t               sensors[MAX_NUM_SENSORS];
-    uint32_t                      flush_count[MAX_NUM_SENSORS];
-    uint32_t                      pending_sensors;
-    int64_t                       time_start;
-    int64_t                       time_offset;
-    pthread_mutex_t               lock;
-    SockServer*                   socket_server;
+    sensors_event_t               m_sensors[MAX_NUM_SENSORS];
+    uint32_t                      m_flush_count[MAX_NUM_SENSORS];
+    uint32_t                      m_pending_sensors;
+    int64_t                       m_time_start;
+    int64_t                       m_time_offset;
+    pthread_mutex_t               m_lock;
+    SockServer*                   m_socket_server;
     std::mutex                    m_msg_queue_mutex;
     std::condition_variable       m_msg_queue_ready_cv;
     std::condition_variable       m_msg_queue_empty_cv;
