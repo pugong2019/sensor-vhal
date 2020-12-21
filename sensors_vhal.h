@@ -143,15 +143,18 @@ private:
     std::condition_variable       m_msg_queue_ready_cv;
     std::condition_variable       m_msg_queue_empty_cv;
     std::queue<acgmsg_sensors_event_t> m_msg_queue;
+    sensor_config_msg_t           m_sensor_activate_status[MAX_NUM_SENSORS];
+    sensor_config_msg_t           m_sensor_batch_status[MAX_NUM_SENSORS];
 
 private:
     int64_t now_ns(void);
     int get_type_from_hanle(int handle);
+    const char* get_name_from_handle(int id);
     int sensor_device_poll_event_locked();
     int sensor_device_send_config_msg(const void* cmd, size_t len);
     int sensor_device_pick_pending_event_locked(sensors_event_t*  event);
     void sensor_event_callback(SockServer *sock, sock_client_proxy_t* client);
-    const char* get_name_from_handle(int id);
+    void client_connected_callback(SockServer *sock, sock_client_proxy_t* client);
 };
 
 #endif
