@@ -47,17 +47,12 @@
 #define SENSOR_VHAL_PORT           8772
 
 #define DEBUG_OPTION          false
-#define CMD_SENSOR_BATCH      0x11
-#define CMD_SENSOR_ACTIVATE   0x22
-#define MAX_MSG_QUEUE_SIZE    128
+#define MAX_MSG_QUEUE_SIZE    512
 
 typedef struct {
-    int32_t    cmd_type;         // acgmsg_sensor_conig_type_t
     int32_t    sensor_type;       // acgmsg_sensor_type_t
-    union {
-       int32_t    enabled;       // acgmsg_sensor_status_t for cmd: ACG_SENSOR_ACTIVATE
-       int32_t    sample_period; // ACG_SENSOR_BATCH
-    };
+    int32_t    enabled;       // acgmsg_sensor_status_t for cmd: ACG_SENSOR_ACTIVATE
+    int32_t    sample_period; // ACG_SENSOR_BATCH
 } sensor_config_msg_t;
 
 typedef struct {
@@ -143,8 +138,7 @@ private:
     std::condition_variable       m_msg_queue_ready_cv;
     std::condition_variable       m_msg_queue_empty_cv;
     std::queue<acgmsg_sensors_event_t> m_msg_queue;
-    sensor_config_msg_t           m_sensor_activate_status[MAX_NUM_SENSORS];
-    sensor_config_msg_t           m_sensor_batch_status[MAX_NUM_SENSORS];
+    sensor_config_msg_t           m_sensor_config_status[MAX_NUM_SENSORS];
 
 private:
     int64_t now_ns(void);
