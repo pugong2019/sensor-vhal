@@ -24,6 +24,7 @@ SensorDevice::SensorDevice(){
         m_sensors[idx].type = SENSOR_TYPE_META_DATA + 1;
         m_flush_count[idx] = 0;
         memset(&m_sensor_config_status[idx], 0, sizeof(sensor_config_msg_t));
+        m_sensor_msg_ptr[idx] = nullptr;
     }
     char buf[PROPERTY_VALUE_MAX] = {'\0',};
     int virtual_sensor_port = SENSOR_VHAL_PORT;
@@ -39,6 +40,11 @@ SensorDevice::SensorDevice(){
 SensorDevice::~SensorDevice(){
     pthread_mutex_destroy(&m_lock);
     delete m_socket_server;
+    m_socket_server = nullptr;
+    for (int idx = 0; idx < MAX_NUM_SENSORS; idx++) {
+        delete m_sensor_msg_ptr[idx];
+        m_sensor_msg_ptr[idx] = nullptr;
+    }
 }
 
 const char* SensorDevice::get_name_from_handle( int  id ) {
@@ -108,7 +114,7 @@ int SensorDevice::sensor_device_poll_event_locked(){
     static int mag_count = 0;
 #endif
 
-    acgmsg_sensors_event_t new_sensor_events;
+    aic_sensors_event_t* new_sensor_events;
     sensors_event_t* events = m_sensors;
     uint32_t new_sensors = 0U;
 
@@ -117,7 +123,6 @@ int SensorDevice::sensor_device_poll_event_locked(){
         sock_client_proxy_t* client = m_socket_server->get_sock_client();
         if(!client){
             pthread_mutex_unlock(&m_lock);
-            // ALOGE("client has not connected yet, wait 2ms");
             usleep(2*1000);   //sleep and wait the client connected to server, and release the lock before sleep
             pthread_mutex_lock(&m_lock);
             continue;
@@ -130,64 +135,64 @@ int SensorDevice::sensor_device_poll_event_locked(){
             }
             new_sensor_events = std::move(m_msg_queue.front());
             m_msg_queue.pop();
-            m_msg_queue_empty_cv.notify_all();
+            // m_msg_queue_empty_cv.notify_all();
         }
         pthread_mutex_lock(&m_lock);
-        switch (new_sensor_events.type)
+        switch (new_sensor_events->type)
         {
             case SENSOR_TYPE_ACCELEROMETER:
                 new_sensors |= SENSORS_ACCELERATION;
-                events[ID_ACCELERATION].acceleration.x = new_sensor_events.acceleration.x;
-                events[ID_ACCELERATION].acceleration.y = new_sensor_events.acceleration.y;
-                events[ID_ACCELERATION].acceleration.z = new_sensor_events.acceleration.z;
-                events[ID_ACCELERATION].timestamp = new_sensor_events.timestamp;
+                events[ID_ACCELERATION].acceleration.x = new_sensor_events->data.fdata[0];
+                events[ID_ACCELERATION].acceleration.y = new_sensor_events->data.fdata[1];
+                events[ID_ACCELERATION].acceleration.z = new_sensor_events->data.fdata[2];
+                events[ID_ACCELERATION].timestamp = new_sensor_events->timestamp;
                 events[ID_ACCELERATION].type = SENSOR_TYPE_ACCELEROMETER;
 
 #if DEBUG_OPTION
                 acc_count++;
                 if(acc_count%100 == 0){
-                    ALOGD("[%-5d] Acc: %f,%f,%f, time = %.3fms", acc_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-last_acc_time))/1000000.0);
+                    ALOGD("[%-5d] Acc: %f,%f,%f, time = %.3fms", acc_count, new_sensor_events->data.fdata[0], new_sensor_events->data.fdata[1], new_sensor_events->data.fdata[2], ((double)(new_sensor_events->timestamp-last_acc_time))/1000000.0);
                 }
-                last_acc_time = new_sensor_events.timestamp;
+                last_acc_time = new_sensor_events->timestamp;
 #endif
                 break;
 
             case SENSOR_TYPE_GYROSCOPE:
                 new_sensors |= SENSORS_GYROSCOPE;
-                events[ID_GYROSCOPE].gyro.x = new_sensor_events.gyro.x;
-                events[ID_GYROSCOPE].gyro.y = new_sensor_events.gyro.y;
-                events[ID_GYROSCOPE].gyro.z = new_sensor_events.gyro.z;
-                events[ID_GYROSCOPE].timestamp = new_sensor_events.timestamp;
+                events[ID_GYROSCOPE].gyro.x = new_sensor_events->data.fdata[0];
+                events[ID_GYROSCOPE].gyro.y =new_sensor_events->data.fdata[1];
+                events[ID_GYROSCOPE].gyro.z = new_sensor_events->data.fdata[2];
+                events[ID_GYROSCOPE].timestamp = new_sensor_events->timestamp;
                 events[ID_ACCELERATION].type = SENSOR_TYPE_GYROSCOPE;
 
 #if DEBUG_OPTION
                 gyr_count++;
                 if(gyr_count%100 == 0){
-                    ALOGD("[%-5d] Gyr: %f,%f,%f, time = %.3fms", gyr_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-last_gyro_time))/1000000.0);
+                    ALOGD("[%-5d] Gyr: %f,%f,%f, time = %.3fms", gyr_count, new_sensor_events->data.fdata[0], new_sensor_events->data.fdata[1], new_sensor_events->data.fdata[2], ((double)(new_sensor_events->timestamp-last_gyro_time))/1000000.0);
                 }
-                last_gyro_time = new_sensor_events.timestamp;
+                last_gyro_time = new_sensor_events->timestamp;
 #endif
                 break;
 
             case SENSOR_TYPE_MAGNETIC_FIELD:
                 new_sensors |= SENSORS_MAGNETIC_FIELD;
-                events[ID_MAGNETIC_FIELD].magnetic.x = new_sensor_events.magnetic.x;
-                events[ID_MAGNETIC_FIELD].magnetic.y = new_sensor_events.magnetic.y;
-                events[ID_MAGNETIC_FIELD].magnetic.z = new_sensor_events.magnetic.z;
-                events[ID_MAGNETIC_FIELD].timestamp = new_sensor_events.timestamp;
+                events[ID_MAGNETIC_FIELD].magnetic.x = new_sensor_events->data.fdata[0];
+                events[ID_MAGNETIC_FIELD].magnetic.y = new_sensor_events->data.fdata[1];
+                events[ID_MAGNETIC_FIELD].magnetic.z =new_sensor_events->data.fdata[2];
+                events[ID_MAGNETIC_FIELD].timestamp = new_sensor_events->timestamp;
                 events[ID_ACCELERATION].type = SENSOR_TYPE_MAGNETIC_FIELD;
 
 #if DEBUG_OPTION
                 mag_count++;
                 if(mag_count%100 == 0){
-                    ALOGD("[%-5d] Mag: %f,%f,%f, time = %.3fms", mag_count, new_sensor_events.acceleration.x, new_sensor_events.acceleration.y, new_sensor_events.acceleration.z, ((double)(new_sensor_events.timestamp-last_mag_time))/1000000.0);
+                    ALOGD("[%-5d] Mag: %f,%f,%f, time = %.3fms", mag_count, new_sensor_events->data.fdata[0], new_sensor_events->data.fdata[1], new_sensor_events->data.fdata[2], ((double)(new_sensor_events->timestamp-last_mag_time))/1000000.0);
                 }
-                last_mag_time = new_sensor_events.timestamp;
+                last_mag_time = new_sensor_events->timestamp;
 #endif
                 break;
 
             default:
-                ALOGE("unsupported sensor type: %d, continuing to receive next event", new_sensor_events.type);
+                ALOGE("unsupported sensor type: %d, continuing to receive next event", new_sensor_events->type);
                 continue;
         }
         break;
@@ -199,7 +204,7 @@ int SensorDevice::sensor_device_poll_event_locked(){
     */
     if (new_sensors) {
         m_pending_sensors |= new_sensors;
-        int64_t remote_timestamp = new_sensor_events.timestamp;
+        int64_t remote_timestamp = new_sensor_events->timestamp;
         int64_t host_timestamp = now_ns();
         if (m_time_start == 0) {
             m_time_start  = host_timestamp;
@@ -371,19 +376,73 @@ int SensorDevice::sensor_device_flush(int handle) {
     return 0;
 }
 
+int SensorDevice::get_index_from_type(int sensor_type)
+{
+    int index = -1;
+    switch (sensor_type)
+    {
+    case SENSOR_TYPE_ACCELEROMETER:
+        index = ID_ACCELERATION;
+        break;
+    case SENSOR_TYPE_MAGNETIC_FIELD:
+        index = ID_MAGNETIC_FIELD;
+        break;
+    case SENSOR_TYPE_GYROSCOPE:
+        index = ID_GYROSCOPE;
+        break;
+    default:
+        ALOGW("unsupported sensor type: %d", sensor_type);
+        index = -1;
+        break;
+    }
+    return index;
+}
+
 void SensorDevice::sensor_event_callback(SockServer *sock, sock_client_proxy_t* client){
-    acgmsg_sensors_event_t new_sensor_events;
-    int len = m_socket_server->recv_data(client, &new_sensor_events, sizeof(acgmsg_sensors_event_t), SOCK_BLOCK_MODE);
+    aic_sensors_event_t sensor_events_header;
+    int payload_len;
+    int len = m_socket_server->recv_data(client, &sensor_events_header, sizeof(aic_sensors_event_t), SOCK_BLOCK_MODE);
+
     if (len <= 0) {
-        ALOGE("sensors vhal receive data failed: %s ", strerror(errno));
-       return;
+        ALOGE("sensors vhal receive sensor header message failed: %s ", strerror(errno));
+        return;
     }
+    int index = get_index_from_type(sensor_events_header.type);
+    switch (sensor_events_header.type)
+    {
+    case SENSOR_TYPE_ACCELEROMETER:
+        payload_len = 3 * sizeof(float);
+        break;
+    case SENSOR_TYPE_GYROSCOPE:
+        payload_len = 3 * sizeof(float);
+        break;
+    case SENSOR_TYPE_MAGNETIC_FIELD:
+        payload_len = 3 * sizeof(float);
+        break;
+    default:
+        payload_len = 0;
+        ALOGW("unsupported sensor type %d", sensor_events_header.type);
+        return;
+    }
+
+    if(!m_sensor_msg_ptr[index]) {
+        m_sensor_msg_ptr[index] = (aic_sensors_event_t *)new char[sizeof(aic_sensors_event_t)+payload_len];
+    }
+    memcpy(m_sensor_msg_ptr[index], &sensor_events_header, sizeof(aic_sensors_event_t));
+    len = m_socket_server->recv_data(client, m_sensor_msg_ptr[index]->data.fdata, payload_len, SOCK_BLOCK_MODE);
+    if (len <= 0) {
+        ALOGE("sensors vhal receive sensor data failed: %s", strerror(errno));
+        return;
+    }
+
     std::unique_lock<std::mutex> lck(m_msg_queue_mutex);
-    while(m_msg_queue.size() > MAX_MSG_QUEUE_SIZE){
-        ALOGW("the msg queue is too large: %d, waiting processed...", (int)m_msg_queue.size());
-        m_msg_queue_empty_cv.wait(lck);
+    while(m_msg_queue.size() >= MAX_MSG_QUEUE_SIZE){
+        // ALOGW("the msg queue is too large: %d, waiting processed...", (int)m_msg_queue.size());
+        ALOGW("the sensor message queue is full, drop the old data...");
+        m_msg_queue.pop();
     }
-    m_msg_queue.emplace(new_sensor_events);
+
+    m_msg_queue.emplace(std::move(m_sensor_msg_ptr[index]));
     m_msg_queue_ready_cv.notify_all();
 }
 

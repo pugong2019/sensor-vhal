@@ -47,7 +47,7 @@
 #define SENSOR_VHAL_PORT           8772
 
 #define DEBUG_OPTION          false
-#define MAX_MSG_QUEUE_SIZE    512
+#define MAX_MSG_QUEUE_SIZE    128
 
 typedef struct {
     int32_t    sensor_type;       // acgmsg_sensor_type_t
@@ -55,51 +55,37 @@ typedef struct {
     int32_t    sample_period; // ACG_SENSOR_BATCH
 } sensor_config_msg_t;
 
-typedef struct {
-    union {
-        struct {
-            float x;
-            float y;
-            float z;
-        };
-        struct {
-            float azimuth;
-            float pitch;
-            float roll;
-        };
-    };
-} acgmsg_sensors_vec_t;
 
-// ACG_MESSAGE_CLIENT_SENSOR payload
+
+// snesor payload
 //now AIC only support acceleration, magnetic, gyro
-typedef struct acgmsg_sensors_event_t {
+/*
+| sensor type       | data type | data len | detail                                           | note                                                         | status        |
+| :---------------- | :-------: | :------: | :----------------------------------------------- | :----------------------------------------------------------- | :------------ |
+| acceleremoter     |   float   |    3     | data[0]=acc.x,  data[1]=acc.y,  data[2]=acc.z    | acceleration values are in meter per second per second (m/s^2) | supported     |
+| magnetic-filed    |   float   |    3     | data[0]=mag.x, data[1]=mag.y,  data[2]=mag.z     | magnetic vector values are in micro-Tesla (uT)               | supported     |
+| gyroscope         |   float   |    3     | data[0]=gyro.x,  data[1]=gyro.y,  data[2]=gyro.z | gyroscope values are in rad/s                                | supported     |
+| temperature       |   float   |    1     | data=temperature_value                           | temperature is in degrees centigrade (Celsius)               | not supported |
+| distance          |   float   |    1     | data=distance_value                              | distance in centimeters                                      | not supported |
+| light             |   float   |    1     | data=light_value                                 | light in SI lux units                                        | not supported |
+| pressure          |   float   |    1     | data=pressure_value                              | pressure in hectopascal (hPa)                                | not supported |
+| relative_humidity |   float   |    1     | data=relative_humidity_value                     | relative humidity in percent                                 | not supported |
+|                   |           |          |                                                  |                                                              |               |
+ *
+ */
+typedef struct _aic_sensors_event_t {
     /* sensor type */
-    int32_t type; // acgmsg_sensor_type_t
+    int32_t   type; // acgmsg_sensor_type_t
+    int32_t   data_num;
     /* time is in nanosecond */
-    int64_t timestamp;
-    union {
-        union {
-            /* acceleration values are in meter per second per second (m/s^2) */
-            acgmsg_sensors_vec_t   acceleration;
-            /* magnetic vector values are in micro-Tesla (uT) */
-            acgmsg_sensors_vec_t   magnetic;
-            /* orientation values are in degrees */
-            acgmsg_sensors_vec_t   orientation;
-            /* gyroscope values are in rad/s */
-            acgmsg_sensors_vec_t   gyro;
-            /* temperature is in degrees centigrade (Celsius) */
-            float           temperature;
-            /* distance in centimeters */
-            float           distance;
-            /* light in SI lux units */
-            float           light;
-            /* pressure in hectopascal (hPa) */
-            float           pressure;
-            /* relative humidity in percent */
-            float           relative_humidity;
-        };
-    };
-} acgmsg_sensors_event_t;
+    int64_t   timestamp;
+    union
+    {
+        float   fdata[0];
+        int32_t idata[0];
+        char    cdata[0];
+    }data;
+} aic_sensors_event_t;
 
 #define  SENSORS_LIST  \
     SENSOR_(ACCELERATION,"acceleration") \
@@ -136,9 +122,10 @@ private:
     SockServer*                   m_socket_server;
     std::mutex                    m_msg_queue_mutex;
     std::condition_variable       m_msg_queue_ready_cv;
-    std::condition_variable       m_msg_queue_empty_cv;
-    std::queue<acgmsg_sensors_event_t> m_msg_queue;
+    // std::condition_variable       m_msg_queue_empty_cv;
+    std::queue<aic_sensors_event_t*> m_msg_queue;
     sensor_config_msg_t           m_sensor_config_status[MAX_NUM_SENSORS];
+    aic_sensors_event_t*          m_sensor_msg_ptr[MAX_NUM_SENSORS];
 
 private:
     int64_t now_ns(void);
@@ -149,6 +136,7 @@ private:
     int sensor_device_pick_pending_event_locked(sensors_event_t*  event);
     void sensor_event_callback(SockServer *sock, sock_client_proxy_t* client);
     void client_connected_callback(SockServer *sock, sock_client_proxy_t* client);
+    int get_index_from_type(int sensor_type);
 };
 
 #endif
