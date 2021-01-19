@@ -14,16 +14,9 @@ private:
 
 class AutoMutex {
 public:
-    explicit AutoMutex(Mutex& mutex)
-        : m_mutex(mutex)
-    {
-        m_mutex.lock();
-    };
+    explicit AutoMutex(Mutex& mutex) : m_mutex(mutex) { m_mutex.lock(); };
 
-    ~AutoMutex()
-    {
-        m_mutex.unlock();
-    };
+    ~AutoMutex() { m_mutex.unlock(); };
 
 private:
     Mutex& m_mutex;

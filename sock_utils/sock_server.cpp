@@ -65,7 +65,7 @@ sock_server_t* sock_server_init(int type, int port) {
     }
 
     int on = 1;
-    ret = setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&on, sizeof(int));
+    ret    = setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&on, sizeof(int));
     if (ret < 0) {
         sock_log("sock error: set socketopt(REUSEADDR) failed!\n");
         close(socketfd);
@@ -80,7 +80,7 @@ sock_server_t* sock_server_init(int type, int port) {
 
 #if 1
     int flag = 1;
-    ret = ioctl(socketfd, FIONBIO, &flag);
+    ret      = ioctl(socketfd, FIONBIO, &flag);
     if (ret < 0) {
         sock_log("sock error: set server socket to FIONBIO failed!");
         close(socketfd);
@@ -141,7 +141,7 @@ sock_server_t* sock_server_init(int type, int port) {
         return NULL;
     }
     memset(server, 0, sizeof(sock_server_t));
-    server->type = type;
+    server->type     = type;
     server->socketfd = socketfd;
 
     if (SOCK_CONN_TYPE_INET_SOCK != type) {
