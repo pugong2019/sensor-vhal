@@ -4,6 +4,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+#include <queue>
+#include <vector>
 #include <log/log.h>
 #include <queue>
 #include <vector>
@@ -16,8 +18,8 @@
 #include "sock_utils.h"
 
 #define  SENSORS_SERVICE_NAME "sensors"
-#define MAX_NUM_SENSORS 3
-#define SUPPORTED_SENSORS  ((1<<MAX_NUM_SENSORS)-1)
+#define  MAX_NUM_SENSORS 3
+#define  SUPPORTED_SENSORS  ((1<<MAX_NUM_SENSORS)-1)
 
 /**  SENSOR IDS AND NAMES **/
 #define  ID_BASE                        SENSORS_HANDLE_BASE
@@ -45,10 +47,10 @@
 
 #define SENSOR_VHAL_PORT_PROP      "virtual.sensor.tcp.port"
 #define SENSOR_VHAL_PORT           8772
-
-#define DEBUG_OPTION          false
-#define MAX_MSG_QUEUE_SIZE    128
-
+#define DEBUG_OPTION               false
+#define MAX_MSG_QUEUE_SIZE         128
+#define MEM_POOL_SIZE              16
+#define MAX_SENSOR_PAYLOAD_SIZE    (sizeof(float)*3)
 typedef struct {
     int32_t    sensor_type;       // acgmsg_sensor_type_t
     int32_t    enabled;       // acgmsg_sensor_status_t for cmd: ACG_SENSOR_ACTIVATE
@@ -103,7 +105,7 @@ static const struct {
 
 class SensorDevice {
 public:
-    struct sensors_poll_device_1  device; //must be first
+    struct sensors_poll_device_1 device;  // must be first
     SensorDevice();
     ~SensorDevice();
     int sensor_device_poll(sensors_event_t* data, int count);
@@ -113,30 +115,30 @@ public:
     int sensor_device_batch(int sensor_handle, int64_t sampling_period_ns);
 
 private:
-    sensors_event_t               m_sensors[MAX_NUM_SENSORS];
-    uint32_t                      m_flush_count[MAX_NUM_SENSORS];
-    uint32_t                      m_pending_sensors;
-    int64_t                       m_time_start;
-    int64_t                       m_time_offset;
-    std::mutex                    m_mutex;
-    std::mutex                    m_msg_queue_mutex;
-    std::condition_variable       m_msg_queue_ready_cv;
-    // std::condition_variable       m_msg_queue_empty_cv;
-    std::queue<aic_sensors_event_t*> m_msg_queue;
-    SockServer*                   m_socket_server;
-    sensor_config_msg_t           m_sensor_config_status[MAX_NUM_SENSORS];
-    aic_sensors_event_t*          m_sensor_msg_ptr[MAX_NUM_SENSORS];
+    uint32_t m_flush_count[MAX_NUM_SENSORS];
+    uint32_t m_pending_sensors;
+    int64_t m_time_start;
+    int64_t m_time_offset;
+    sensors_event_t m_sensors[MAX_NUM_SENSORS];
+    SockServer* m_socket_server;
+    sensor_config_msg_t m_sensor_config_status[MAX_NUM_SENSORS];
+    std::queue<aic_sensors_event_t*> m_sensor_msg_queue;
+    std::queue<char*> m_msg_mem_pool;
+    std::mutex m_msg_queue_mtx;
+    std::mutex m_msg_pool_mtx;
+    std::mutex m_mutex;
+    std::condition_variable m_msg_queue_ready_cv;
 
 private:
     int64_t now_ns(void);
     int get_type_from_hanle(int handle);
-    const char* get_name_from_handle(int id);
     int sensor_device_poll_event_locked();
     int sensor_device_send_config_msg(const void* cmd, size_t len);
-    int sensor_device_pick_pending_event_locked(sensors_event_t*  event);
-    void sensor_event_callback(SockServer *sock, sock_client_proxy_t* client);
-    void client_connected_callback(SockServer *sock, sock_client_proxy_t* client);
+    int sensor_device_pick_pending_event_locked(sensors_event_t* event);
+    void sensor_event_callback(SockServer* sock, sock_client_proxy_t* client);
+    void client_connected_callback(SockServer* sock, sock_client_proxy_t* client);
     int get_index_from_type(int sensor_type);
+    const char* get_name_from_handle(int id);
 };
 
 #endif
