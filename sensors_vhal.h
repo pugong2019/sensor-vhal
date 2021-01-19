@@ -118,12 +118,12 @@ private:
     uint32_t                      m_pending_sensors;
     int64_t                       m_time_start;
     int64_t                       m_time_offset;
-    pthread_mutex_t               m_lock;
-    SockServer*                   m_socket_server;
+    std::mutex                    m_mutex;
     std::mutex                    m_msg_queue_mutex;
     std::condition_variable       m_msg_queue_ready_cv;
     // std::condition_variable       m_msg_queue_empty_cv;
     std::queue<aic_sensors_event_t*> m_msg_queue;
+    SockServer*                   m_socket_server;
     sensor_config_msg_t           m_sensor_config_status[MAX_NUM_SENSORS];
     aic_sensors_event_t*          m_sensor_msg_ptr[MAX_NUM_SENSORS];
 
