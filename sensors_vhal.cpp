@@ -48,11 +48,11 @@ SensorDevice::~SensorDevice() {
     delete m_socket_server;
     m_socket_server = nullptr;
     while (!m_msg_mem_pool.empty()) {
-        delete m_msg_mem_pool.front();
+        delete[] m_msg_mem_pool.front();
         m_msg_mem_pool.pop();
     }
     while (!m_sensor_msg_queue.empty()) {
-        delete m_sensor_msg_queue.front();
+        delete[] (char*)m_sensor_msg_queue.front();
         m_sensor_msg_queue.pop();
     }
     // Todo: release the buffer not in m_msg_mem_pool or m_sensor_msg_queue
@@ -465,6 +465,7 @@ void SensorDevice::sensor_event_callback(SockServer* sock, sock_client_proxy_t* 
         std::unique_lock<std::mutex> lck(m_msg_queue_mtx);
         while (m_sensor_msg_queue.size() >= MAX_MSG_QUEUE_SIZE) {
             ALOGW("the sensor message queue is full, drop the old data...");
+            m_msg_mem_pool.emplace((char*)m_sensor_msg_queue.front());
             m_sensor_msg_queue.pop();
         }
         m_sensor_msg_queue.emplace(sensor_buffer);
