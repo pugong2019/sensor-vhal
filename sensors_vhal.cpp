@@ -47,10 +47,15 @@ SensorDevice::SensorDevice() {
 SensorDevice::~SensorDevice() {
     delete m_socket_server;
     m_socket_server = nullptr;
-    for (int i = 0; i < (int)m_msg_mem_pool.size(); i++) {
+    while (!m_msg_mem_pool.empty()) {
         delete m_msg_mem_pool.front();
         m_msg_mem_pool.pop();
     }
+    while (!m_sensor_msg_queue.empty()) {
+        delete m_sensor_msg_queue.front();
+        m_sensor_msg_queue.pop();
+    }
+    // Todo: release the buffer not in m_msg_mem_pool or m_sensor_msg_queue
 }
 
 const char* SensorDevice::get_name_from_handle(int id) {
@@ -411,7 +416,7 @@ int SensorDevice::get_index_from_type(int sensor_type) {
 void SensorDevice::sensor_event_callback(SockServer* sock, sock_client_proxy_t* client) {
     aic_sensors_event_t sensor_events_header;
     int payload_len = 0;
-    int len = m_socket_server->recv_data(client, &sensor_events_header, sizeof(aic_sensors_event_t), SOCK_BLOCK_MODE);
+    int len         = m_socket_server->recv_data(client, &sensor_events_header, sizeof(aic_sensors_event_t), SOCK_BLOCK_MODE);
 
     if (len <= 0) {
         ALOGE("sensors vhal receive sensor header message failed: %s ", strerror(errno));
