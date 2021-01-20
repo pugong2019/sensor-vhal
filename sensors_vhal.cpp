@@ -18,6 +18,11 @@
 
 using namespace ::std::placeholders;
 
+template <typename T, typename... Ts>
+std::unique_ptr<T> make_unique_ptr(Ts&&... params) {
+    return std::unique_ptr<T>(new T(std::forward<Ts>(params)...));
+}
+
 SensorDevice::SensorDevice() {
     for (int idx = 0; idx < MAX_NUM_SENSORS; idx++) {
         m_sensors[idx].type = SENSOR_TYPE_META_DATA + 1;
@@ -34,8 +39,7 @@ SensorDevice::SensorDevice() {
     int buf_size = sizeof(aic_sensors_event_t) + MAX_SENSOR_PAYLOAD_SIZE;
 
     for (int i = 0; i < MEM_POOL_SIZE; i++) {
-        char* buf_ptr = new char[buf_size];
-        m_msg_mem_pool.emplace(buf_ptr);
+        m_msg_mem_pool.emplace(make_unique_ptr<std::vector<char>>(buf_size));
     }
 
     m_socket_server = new SockServer(virtual_sensor_port);
@@ -47,15 +51,6 @@ SensorDevice::SensorDevice() {
 SensorDevice::~SensorDevice() {
     delete m_socket_server;
     m_socket_server = nullptr;
-    while (!m_msg_mem_pool.empty()) {
-        delete[] m_msg_mem_pool.front();
-        m_msg_mem_pool.pop();
-    }
-    while (!m_sensor_msg_queue.empty()) {
-        delete[] (char*)m_sensor_msg_queue.front();
-        m_sensor_msg_queue.pop();
-    }
-    // Todo: release the buffer not in m_msg_mem_pool or m_sensor_msg_queue
 }
 
 const char* SensorDevice::get_name_from_handle(int id) {
@@ -124,8 +119,9 @@ int SensorDevice::sensor_device_poll_event_locked() {
 #endif
 
     aic_sensors_event_t* new_sensor_events_ptr = nullptr;
-    sensors_event_t* events                    = m_sensors;
-    uint32_t new_sensors                       = 0U;
+    std::unique_ptr<std::vector<char>> buf_ptr;
+    sensors_event_t* events = m_sensors;
+    uint32_t new_sensors    = 0U;
     // make sure recv one event
     for (;;) {
         sock_client_proxy_t* client = m_socket_server->get_sock_client();
@@ -142,14 +138,15 @@ int SensorDevice::sensor_device_poll_event_locked() {
             if (m_sensor_msg_queue.empty()) {
                 m_msg_queue_ready_cv.wait(lock);
             }
-            new_sensor_events_ptr = m_sensor_msg_queue.front();
+            buf_ptr = std::move(m_sensor_msg_queue.front());
             m_sensor_msg_queue.pop();
-        }
-        if (!new_sensor_events_ptr) {
-            continue;
         }
 
         m_mutex.lock();
+        if (buf_ptr && buf_ptr->empty()) {
+            continue;
+        }
+        new_sensor_events_ptr = (aic_sensors_event_t*)buf_ptr->data();
         sensors_event_t* events = m_sensors;
         switch (new_sensor_events_ptr->type) {
             case SENSOR_TYPE_ACCELEROMETER:
@@ -238,8 +235,7 @@ int SensorDevice::sensor_device_poll_event_locked() {
     }
     {
         std::unique_lock<std::mutex> lock(m_msg_pool_mtx);
-        m_msg_mem_pool.emplace((char*)new_sensor_events_ptr);
-        new_sensor_events_ptr = nullptr;
+        m_msg_mem_pool.emplace(std::move(buf_ptr));
     }
     return 0;
 }
@@ -441,20 +437,20 @@ void SensorDevice::sensor_event_callback(SockServer* sock, sock_client_proxy_t* 
     if (m_msg_mem_pool.empty()) {
         ALOGI("pool run out, create new buffer");
         std::unique_lock<std::mutex> lock(m_msg_pool_mtx);
-        int buf_size  = sizeof(aic_sensors_event_t) + MAX_SENSOR_PAYLOAD_SIZE;
-        char* buf_ptr = new char[buf_size];
-        m_msg_mem_pool.emplace(buf_ptr);
+        int buf_size = sizeof(aic_sensors_event_t) + MAX_SENSOR_PAYLOAD_SIZE;
+        m_msg_mem_pool.emplace(make_unique_ptr<std::vector<char>>(buf_size));
     }
 
-    aic_sensors_event_t* sensor_buffer;
+    aic_sensors_event_t* sensor_events_ptr = nullptr;
+    std::unique_ptr<std::vector<char>> buf_ptr;
     {
         std::unique_lock<std::mutex> lock(m_msg_pool_mtx);
-        sensor_buffer = (aic_sensors_event_t*)m_msg_mem_pool.front();
+        buf_ptr = std::move(m_msg_mem_pool.front());
         m_msg_mem_pool.pop();
     }
-
-    memcpy(sensor_buffer, &sensor_events_header, sizeof(aic_sensors_event_t));
-    len = m_socket_server->recv_data(client, sensor_buffer->data.fdata, payload_len, SOCK_BLOCK_MODE);
+    sensor_events_ptr = (aic_sensors_event_t*)buf_ptr->data();
+    memcpy(sensor_events_ptr, &sensor_events_header, sizeof(aic_sensors_event_t));
+    len = m_socket_server->recv_data(client, sensor_events_ptr->data.fdata, payload_len, SOCK_BLOCK_MODE);
 
     if (len <= 0) {
         ALOGE("sensors vhal receive sensor data failed: %s", strerror(errno));
@@ -465,10 +461,10 @@ void SensorDevice::sensor_event_callback(SockServer* sock, sock_client_proxy_t* 
         std::unique_lock<std::mutex> lck(m_msg_queue_mtx);
         while (m_sensor_msg_queue.size() >= MAX_MSG_QUEUE_SIZE) {
             ALOGW("the sensor message queue is full, drop the old data...");
-            m_msg_mem_pool.emplace((char*)m_sensor_msg_queue.front());
+            m_msg_mem_pool.emplace(std::move(m_sensor_msg_queue.front()));
             m_sensor_msg_queue.pop();
         }
-        m_sensor_msg_queue.emplace(sensor_buffer);
+        m_sensor_msg_queue.emplace(std::move(buf_ptr));
         m_msg_queue_ready_cv.notify_all();
     }
 }
