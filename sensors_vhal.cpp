@@ -146,7 +146,7 @@ int SensorDevice::sensor_device_poll_event_locked() {
         if (buf_ptr && buf_ptr->empty()) {
             continue;
         }
-        new_sensor_events_ptr = (aic_sensors_event_t*)buf_ptr->data();
+        new_sensor_events_ptr   = (aic_sensors_event_t*)buf_ptr->data();
         sensors_event_t* events = m_sensors;
         switch (new_sensor_events_ptr->type) {
             case SENSOR_TYPE_ACCELEROMETER:
@@ -173,7 +173,7 @@ int SensorDevice::sensor_device_poll_event_locked() {
                 events[ID_GYROSCOPE].gyro.y    = new_sensor_events_ptr->data.fdata[1];
                 events[ID_GYROSCOPE].gyro.z    = new_sensor_events_ptr->data.fdata[2];
                 events[ID_GYROSCOPE].timestamp = new_sensor_events_ptr->timestamp;
-                events[ID_ACCELERATION].type   = SENSOR_TYPE_GYROSCOPE;
+                events[ID_GYROSCOPE].type      = SENSOR_TYPE_GYROSCOPE;
 
 #if DEBUG_OPTION
                 gyr_count++;
@@ -191,7 +191,7 @@ int SensorDevice::sensor_device_poll_event_locked() {
                 events[ID_MAGNETIC_FIELD].magnetic.y = new_sensor_events_ptr->data.fdata[1];
                 events[ID_MAGNETIC_FIELD].magnetic.z = new_sensor_events_ptr->data.fdata[2];
                 events[ID_MAGNETIC_FIELD].timestamp  = new_sensor_events_ptr->timestamp;
-                events[ID_ACCELERATION].type         = SENSOR_TYPE_MAGNETIC_FIELD;
+                events[ID_MAGNETIC_FIELD].type       = SENSOR_TYPE_MAGNETIC_FIELD;
 
 #if DEBUG_OPTION
                 mag_count++;
