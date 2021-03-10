@@ -18,7 +18,7 @@
 #include "sock_utils.h"
 
 #define  SENSORS_SERVICE_NAME "sensors"
-#define  MAX_NUM_SENSORS 3
+#define  MAX_NUM_SENSORS 6
 #define  SUPPORTED_SENSORS  ((1<<MAX_NUM_SENSORS)-1)
 
 /**  SENSOR IDS AND NAMES **/
@@ -26,31 +26,34 @@
 #define  ID_ACCELERATION                (ID_BASE+0)
 #define  ID_GYROSCOPE                   (ID_BASE+1)
 #define  ID_MAGNETIC_FIELD              (ID_BASE+2)
-#define  ID_ORIENTATION                 (ID_BASE+3)
-#define  ID_TEMPERATURE                 (ID_BASE+4)
-#define  ID_PROXIMITY                   (ID_BASE+5)
-#define  ID_LIGHT                       (ID_BASE+6)
-#define  ID_PRESSURE                    (ID_BASE+7)
-#define  ID_HUMIDITY                    (ID_BASE+8)
-#define  ID_MAGNETIC_FIELD_UNCALIBRATED (ID_BASE+9)
+#define  ID_ACCELERATION_UNCALIBRATED   (ID_BASE+3)
+#define  ID_GYROSCOPE_UNCALIBRATED      (ID_BASE+4)
+#define  ID_MAGNETIC_FIELD_UNCALIBRATED (ID_BASE+5)
+
+// #define  ID_LIGHT                       (ID_BASE+6)
+// #define  ID_PRESSURE                    (ID_BASE+7)
+// #define  ID_HUMIDITY                    (ID_BASE+8)
 
 #define  SENSORS_ACCELERATION                 (1 << ID_ACCELERATION)
 #define  SENSORS_GYROSCOPE                    (1 << ID_GYROSCOPE)
 #define  SENSORS_MAGNETIC_FIELD               (1 << ID_MAGNETIC_FIELD)
-#define  SENSORS_ORIENTATION                  (1 << ID_ORIENTATION)
-#define  SENSORS_TEMPERATURE                  (1 << ID_TEMPERATURE)
-#define  SENSORS_PROXIMITY                    (1 << ID_PROXIMITY)
-#define  SENSORS_LIGHT                        (1 << ID_LIGHT)
-#define  SENSORS_PRESSURE                     (1 << ID_PRESSURE)
-#define  SENSORS_HUMIDITY                     (1 << ID_HUMIDITY)
+#define  SENSORS_ACCELERATION_UNCALIBRATED    (1 << ID_ACCELERATION_UNCALIBRATED)
+#define  SENSORS_GYROSCOPE_UNCALIBRATED       (1 << ID_GYROSCOPE_UNCALIBRATED)
 #define  SENSORS_MAGNETIC_FIELD_UNCALIBRATED  (1 << ID_MAGNETIC_FIELD_UNCALIBRATED)
+
+// #define  SENSORS_ORIENTATION                  (1 << ID_ORIENTATION)
+// #define  SENSORS_TEMPERATURE                  (1 << ID_TEMPERATURE)
+// #define  SENSORS_PROXIMITY                    (1 << ID_PROXIMITY)
+// #define  SENSORS_LIGHT                        (1 << ID_LIGHT)
+// #define  SENSORS_PRESSURE                     (1 << ID_PRESSURE)
+// #define  SENSORS_HUMIDITY                     (1 << ID_HUMIDITY)
 
 #define SENSOR_VHAL_PORT_PROP      "virtual.sensor.tcp.port"
 #define SENSOR_VHAL_PORT           8772
 #define DEBUG_OPTION               false
 #define MAX_MSG_QUEUE_SIZE         128
 #define MEM_POOL_SIZE              16
-#define MAX_SENSOR_PAYLOAD_SIZE    (sizeof(float)*3)
+#define MAX_SENSOR_PAYLOAD_SIZE    (sizeof(float)*8)
 typedef struct {
     int32_t    sensor_type;       // acgmsg_sensor_type_t
     int32_t    enabled;       // acgmsg_sensor_status_t for cmd: ACG_SENSOR_ACTIVATE
@@ -93,6 +96,9 @@ typedef struct _aic_sensors_event_t {
     SENSOR_(ACCELERATION,"acceleration") \
     SENSOR_(GYROSCOPE,"gyroscope") \
     SENSOR_(MAGNETIC_FIELD,"magnetic-field") \
+    SENSOR_(ACCELERATION_UNCALIBRATED,"acceleration_uncalibrated") \
+    SENSOR_(GYROSCOPE_UNCALIBRATED,"gyroscope_uncalibrated") \
+    SENSOR_(MAGNETIC_FIELD_UNCALIBRATED,"magnetic-field_uncalibrated") \
 
 static const struct {
     const char*  name;
