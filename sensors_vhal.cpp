@@ -84,7 +84,7 @@ int SensorDevice::sensor_device_send_config_msg(const void* cmd, size_t len) {
 int SensorDevice::get_type_from_hanle(int handle) {
     int id = -1;
     switch (handle) {
-        case ID_ACCELERATION:
+        case ID_ACCELEROMETER:
             id = SENSOR_TYPE_ACCELEROMETER;
             break;
         case ID_GYROSCOPE:
@@ -93,7 +93,7 @@ int SensorDevice::get_type_from_hanle(int handle) {
         case ID_MAGNETIC_FIELD:
             id = SENSOR_TYPE_MAGNETIC_FIELD;
             break;
-        case ID_ACCELERATION_UNCALIBRATED:
+        case ID_ACCELEROMETER_UNCALIBRATED:
             id = SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED;
             break;
         case ID_GYROSCOPE_UNCALIBRATED:
@@ -161,12 +161,12 @@ int SensorDevice::sensor_device_poll_event_locked() {
         sensors_event_t* events = m_sensors;
         switch (new_sensor_events_ptr->type) {
             case SENSOR_TYPE_ACCELEROMETER:
-                new_sensors |= SENSORS_ACCELERATION;
-                events[ID_ACCELERATION].acceleration.x = new_sensor_events_ptr->data.fdata[0];
-                events[ID_ACCELERATION].acceleration.y = new_sensor_events_ptr->data.fdata[1];
-                events[ID_ACCELERATION].acceleration.z = new_sensor_events_ptr->data.fdata[2];
-                events[ID_ACCELERATION].timestamp      = new_sensor_events_ptr->timestamp;
-                events[ID_ACCELERATION].type           = SENSOR_TYPE_ACCELEROMETER;
+                new_sensors |= SENSORS_ACCELEROMETER;
+                events[ID_ACCELEROMETER].acceleration.x = new_sensor_events_ptr->data.fdata[0];
+                events[ID_ACCELEROMETER].acceleration.y = new_sensor_events_ptr->data.fdata[1];
+                events[ID_ACCELEROMETER].acceleration.z = new_sensor_events_ptr->data.fdata[2];
+                events[ID_ACCELEROMETER].timestamp      = new_sensor_events_ptr->timestamp;
+                events[ID_ACCELEROMETER].type           = SENSOR_TYPE_ACCELEROMETER;
 
 #if DEBUG_OPTION
                 acc_count++;
@@ -215,11 +215,11 @@ int SensorDevice::sensor_device_poll_event_locked() {
                 break;
 
             case SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED:
-                new_sensors |= SENSORS_ACCELERATION_UNCALIBRATED;
+                new_sensors |= SENSORS_ACCELEROMETER_UNCALIBRATED;
                 payload_len = 6 * sizeof(float);
-                memcpy(&events[ID_ACCELERATION_UNCALIBRATED].acceleration, new_sensor_events_ptr->data.fdata, payload_len);
-                events[ID_ACCELERATION_UNCALIBRATED].timestamp = new_sensor_events_ptr->timestamp;
-                events[ID_ACCELERATION_UNCALIBRATED].type      = SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED;
+                memcpy(&events[ID_ACCELEROMETER_UNCALIBRATED].acceleration, new_sensor_events_ptr->data.fdata, payload_len);
+                events[ID_ACCELEROMETER_UNCALIBRATED].timestamp = new_sensor_events_ptr->timestamp;
+                events[ID_ACCELEROMETER_UNCALIBRATED].type      = SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED;
                 break;
 
             case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
@@ -428,7 +428,7 @@ int SensorDevice::get_index_from_type(int sensor_type) {
     int index = -1;
     switch (sensor_type) {
         case SENSOR_TYPE_ACCELEROMETER:
-            index = ID_ACCELERATION;
+            index = ID_ACCELEROMETER;
             break;
         case SENSOR_TYPE_MAGNETIC_FIELD:
             index = ID_MAGNETIC_FIELD;
@@ -437,7 +437,7 @@ int SensorDevice::get_index_from_type(int sensor_type) {
             index = ID_GYROSCOPE;
             break;
         case SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED:
-            index = ID_ACCELERATION_UNCALIBRATED;
+            index = ID_ACCELEROMETER_UNCALIBRATED;
             break;
         case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
             index = ID_GYROSCOPE_UNCALIBRATED;
@@ -588,7 +588,7 @@ static const struct sensor_t sSensorListInit[] = {
     {.name                   = "AIC 3-axis Accelerometer",
      .vendor                 = "Intel ACGSS",
      .version                = 1,
-     .handle                 = ID_ACCELERATION,
+     .handle                 = ID_ACCELEROMETER,
      .type                   = SENSOR_TYPE_ACCELEROMETER,
      .maxRange               = 2.8f,
      .resolution             = 1.0f / 4032.0f,
@@ -635,7 +635,7 @@ static const struct sensor_t sSensorListInit[] = {
     {.name                   = "AIC 3-axis uncalibrated accelerometer ",
      .vendor                 = "Intel ACGSS",
      .version                = 1,
-     .handle                 = ID_ACCELERATION_UNCALIBRATED,
+     .handle                 = ID_ACCELEROMETER_UNCALIBRATED,
      .type                   = SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED,
      .maxRange               = 2.8f,
      .resolution             = 1.0f / 4032.0f,

@@ -23,10 +23,10 @@
 
 /**  SENSOR IDS AND NAMES **/
 #define  ID_BASE                        SENSORS_HANDLE_BASE
-#define  ID_ACCELERATION                (ID_BASE+0)
+#define  ID_ACCELEROMETER               (ID_BASE+0)
 #define  ID_GYROSCOPE                   (ID_BASE+1)
 #define  ID_MAGNETIC_FIELD              (ID_BASE+2)
-#define  ID_ACCELERATION_UNCALIBRATED   (ID_BASE+3)
+#define  ID_ACCELEROMETER_UNCALIBRATED  (ID_BASE+3)
 #define  ID_GYROSCOPE_UNCALIBRATED      (ID_BASE+4)
 #define  ID_MAGNETIC_FIELD_UNCALIBRATED (ID_BASE+5)
 
@@ -34,10 +34,10 @@
 // #define  ID_PRESSURE                    (ID_BASE+7)
 // #define  ID_HUMIDITY                    (ID_BASE+8)
 
-#define  SENSORS_ACCELERATION                 (1 << ID_ACCELERATION)
+#define  SENSORS_ACCELEROMETER                (1 << ID_ACCELEROMETER)
 #define  SENSORS_GYROSCOPE                    (1 << ID_GYROSCOPE)
 #define  SENSORS_MAGNETIC_FIELD               (1 << ID_MAGNETIC_FIELD)
-#define  SENSORS_ACCELERATION_UNCALIBRATED    (1 << ID_ACCELERATION_UNCALIBRATED)
+#define  SENSORS_ACCELEROMETER_UNCALIBRATED   (1 << ID_ACCELEROMETER_UNCALIBRATED)
 #define  SENSORS_GYROSCOPE_UNCALIBRATED       (1 << ID_GYROSCOPE_UNCALIBRATED)
 #define  SENSORS_MAGNETIC_FIELD_UNCALIBRATED  (1 << ID_MAGNETIC_FIELD_UNCALIBRATED)
 
@@ -93,10 +93,10 @@ typedef struct _aic_sensors_event_t {
 } aic_sensors_event_t;
 
 #define  SENSORS_LIST  \
-    SENSOR_(ACCELERATION,"acceleration") \
+    SENSOR_(ACCELEROMETER,"acceleration") \
     SENSOR_(GYROSCOPE,"gyroscope") \
     SENSOR_(MAGNETIC_FIELD,"magnetic-field") \
-    SENSOR_(ACCELERATION_UNCALIBRATED,"acceleration_uncalibrated") \
+    SENSOR_(ACCELEROMETER_UNCALIBRATED,"acceleration_uncalibrated") \
     SENSOR_(GYROSCOPE_UNCALIBRATED,"gyroscope_uncalibrated") \
     SENSOR_(MAGNETIC_FIELD_UNCALIBRATED,"magnetic-field_uncalibrated") \
 
