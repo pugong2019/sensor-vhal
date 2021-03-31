@@ -18,7 +18,7 @@
 #include "sock_utils.h"
 
 #define  SENSORS_SERVICE_NAME "sensors"
-#define  MAX_NUM_SENSORS 6
+#define  MAX_NUM_SENSORS 9
 #define  SUPPORTED_SENSORS  ((1<<MAX_NUM_SENSORS)-1)
 
 /**  SENSOR IDS AND NAMES **/
@@ -29,6 +29,10 @@
 #define  ID_ACCELEROMETER_UNCALIBRATED  (ID_BASE+3)
 #define  ID_GYROSCOPE_UNCALIBRATED      (ID_BASE+4)
 #define  ID_MAGNETIC_FIELD_UNCALIBRATED (ID_BASE+5)
+#define  ID_LIGHT                       (ID_BASE+6)
+#define  ID_PROXIMITY                   (ID_BASE+7)
+#define  ID_TEMPERATURE                 (ID_BASE+8)
+
 
 // #define  ID_LIGHT                       (ID_BASE+6)
 // #define  ID_PRESSURE                    (ID_BASE+7)
@@ -40,13 +44,9 @@
 #define  SENSORS_ACCELEROMETER_UNCALIBRATED   (1 << ID_ACCELEROMETER_UNCALIBRATED)
 #define  SENSORS_GYROSCOPE_UNCALIBRATED       (1 << ID_GYROSCOPE_UNCALIBRATED)
 #define  SENSORS_MAGNETIC_FIELD_UNCALIBRATED  (1 << ID_MAGNETIC_FIELD_UNCALIBRATED)
-
-// #define  SENSORS_ORIENTATION                  (1 << ID_ORIENTATION)
-// #define  SENSORS_TEMPERATURE                  (1 << ID_TEMPERATURE)
-// #define  SENSORS_PROXIMITY                    (1 << ID_PROXIMITY)
-// #define  SENSORS_LIGHT                        (1 << ID_LIGHT)
-// #define  SENSORS_PRESSURE                     (1 << ID_PRESSURE)
-// #define  SENSORS_HUMIDITY                     (1 << ID_HUMIDITY)
+#define  SENSORS_LIGHT                        (1 << ID_LIGHT)
+#define  SENSORS_PROXIMITY                    (1 << ID_PROXIMITY)
+#define  SENSORS_TEMPERATURE                  (1 << ID_TEMPERATURE)
 
 #define SENSOR_VHAL_PORT_PROP      "virtual.sensor.tcp.port"
 #define SENSOR_VHAL_PORT           8772
@@ -99,6 +99,9 @@ typedef struct _aic_sensors_event_t {
     SENSOR_(ACCELEROMETER_UNCALIBRATED,"acceleration_uncalibrated") \
     SENSOR_(GYROSCOPE_UNCALIBRATED,"gyroscope_uncalibrated") \
     SENSOR_(MAGNETIC_FIELD_UNCALIBRATED,"magnetic-field_uncalibrated") \
+    SENSOR_(LIGHT,"light") \
+    SENSOR_(PROXIMITY,"proximity") \
+    SENSOR_(TEMPERATURE,"temperature") \
 
 static const struct {
     const char*  name;
@@ -144,6 +147,7 @@ private:
     void sensor_event_callback(SockServer* sock, sock_client_proxy_t* client);
     void client_connected_callback(SockServer* sock, sock_client_proxy_t* client);
     int get_index_from_type(int sensor_type);
+    int get_payload_len(int sensor_type);
     const char* get_name_from_handle(int id);
 };
 

@@ -60,6 +60,32 @@ const char* SensorDevice::get_name_from_handle(int id) {
     return "<UNKNOWN>";
 }
 
+int SensorDevice::get_payload_len(int sensor_type) {
+    int payload_len = 0;
+    switch (sensor_type) {
+        case SENSOR_TYPE_ACCELEROMETER:
+        case SENSOR_TYPE_GYROSCOPE:
+        case SENSOR_TYPE_MAGNETIC_FIELD:
+            payload_len = 3 * sizeof(float);
+            break;
+        case SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED:
+        case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
+        case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
+            payload_len = 6 * sizeof(float);
+            break;
+        case SENSOR_TYPE_LIGHT:
+        case SENSOR_TYPE_PROXIMITY:
+        case SENSOR_TYPE_AMBIENT_TEMPERATURE:
+            payload_len = 1 * sizeof(float);
+            break;
+        default:
+            payload_len = 0;
+            ALOGW("unsupported sensor type %d", sensor_type);
+            break;
+    }
+    return payload_len;
+}
+
 /* return the current time in nanoseconds */
 int64_t SensorDevice::now_ns(void) {
     struct timespec ts;
@@ -101,6 +127,15 @@ int SensorDevice::get_type_from_hanle(int handle) {
             break;
         case ID_MAGNETIC_FIELD_UNCALIBRATED:
             id = SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED;
+            break;
+        case ID_LIGHT:
+            id = SENSOR_TYPE_LIGHT;
+            break;
+        case ID_PROXIMITY:
+            id = SENSOR_TYPE_PROXIMITY;
+            break;
+        case ID_TEMPERATURE:
+            id = SENSOR_TYPE_AMBIENT_TEMPERATURE;
             break;
         default:
             ALOGW("unknown handle (%d)", handle);
@@ -156,10 +191,12 @@ int SensorDevice::sensor_device_poll_event_locked() {
         if (buf_ptr && buf_ptr->empty()) {
             continue;
         }
-        new_sensor_events_ptr = (aic_sensors_event_t*)buf_ptr->data();
-        int payload_len = 0;
+        new_sensor_events_ptr   = (aic_sensors_event_t*)buf_ptr->data();
         sensors_event_t* events = m_sensors;
-        switch (new_sensor_events_ptr->type) {
+
+        int sensor_type = new_sensor_events_ptr->type;
+        int payload_len = get_payload_len(sensor_type);
+        switch (sensor_type) {
             case SENSOR_TYPE_ACCELEROMETER:
                 new_sensors |= SENSORS_ACCELEROMETER;
                 events[ID_ACCELEROMETER].acceleration.x = new_sensor_events_ptr->data.fdata[0];
@@ -216,7 +253,6 @@ int SensorDevice::sensor_device_poll_event_locked() {
 
             case SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED:
                 new_sensors |= SENSORS_ACCELEROMETER_UNCALIBRATED;
-                payload_len = 6 * sizeof(float);
                 memcpy(&events[ID_ACCELEROMETER_UNCALIBRATED].acceleration, new_sensor_events_ptr->data.fdata, payload_len);
                 events[ID_ACCELEROMETER_UNCALIBRATED].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_ACCELEROMETER_UNCALIBRATED].type      = SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED;
@@ -224,18 +260,37 @@ int SensorDevice::sensor_device_poll_event_locked() {
 
             case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
                 new_sensors |= SENSORS_GYROSCOPE_UNCALIBRATED;
-                payload_len = 6 * sizeof(float);
                 memcpy(&events[ID_GYROSCOPE_UNCALIBRATED].gyro, new_sensor_events_ptr->data.fdata, payload_len);
                 events[ID_GYROSCOPE_UNCALIBRATED].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_GYROSCOPE_UNCALIBRATED].type      = SENSOR_TYPE_GYROSCOPE_UNCALIBRATED;
                 break;
 
             case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
-                payload_len = 6 * sizeof(float);
                 new_sensors |= SENSORS_MAGNETIC_FIELD_UNCALIBRATED;
                 memcpy(&events[ID_MAGNETIC_FIELD_UNCALIBRATED].magnetic, new_sensor_events_ptr->data.fdata, payload_len);
                 events[ID_MAGNETIC_FIELD_UNCALIBRATED].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_MAGNETIC_FIELD_UNCALIBRATED].type      = SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED;
+                break;
+
+            case SENSOR_TYPE_LIGHT:
+                new_sensors |= SENSORS_LIGHT;
+                memcpy(&events[ID_LIGHT].magnetic, new_sensor_events_ptr->data.fdata, payload_len);
+                events[ID_LIGHT].timestamp = new_sensor_events_ptr->timestamp;
+                events[ID_LIGHT].type      = SENSOR_TYPE_LIGHT;
+                break;
+
+            case SENSOR_TYPE_PROXIMITY:
+                new_sensors |= SENSORS_PROXIMITY;
+                memcpy(&events[ID_PROXIMITY].magnetic, new_sensor_events_ptr->data.fdata, payload_len);
+                events[ID_PROXIMITY].timestamp = new_sensor_events_ptr->timestamp;
+                events[ID_PROXIMITY].type      = SENSOR_TYPE_PROXIMITY;
+                break;
+
+            case SENSOR_TYPE_AMBIENT_TEMPERATURE:
+                new_sensors |= SENSORS_TEMPERATURE;
+                memcpy(&events[ID_TEMPERATURE].magnetic, new_sensor_events_ptr->data.fdata, payload_len);
+                events[ID_TEMPERATURE].timestamp = new_sensor_events_ptr->timestamp;
+                events[ID_TEMPERATURE].type      = SENSOR_TYPE_AMBIENT_TEMPERATURE;
                 break;
 
             default:
@@ -445,6 +500,15 @@ int SensorDevice::get_index_from_type(int sensor_type) {
         case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
             index = ID_MAGNETIC_FIELD_UNCALIBRATED;
             break;
+        case SENSOR_TYPE_LIGHT:
+            index = ID_LIGHT;
+            break;
+        case SENSOR_TYPE_AMBIENT_TEMPERATURE:
+            index = ID_TEMPERATURE;
+            break;
+        case SENSOR_TYPE_PROXIMITY:
+            index = ID_PROXIMITY;
+            break;
         default:
             ALOGW("unsupported sensor type: %d", sensor_type);
             index = -1;
@@ -455,37 +519,15 @@ int SensorDevice::get_index_from_type(int sensor_type) {
 
 void SensorDevice::sensor_event_callback(SockServer* sock, sock_client_proxy_t* client) {
     aic_sensors_event_t sensor_events_header;
-    int payload_len = 0;
-
     int len = m_socket_server->recv_data(client, &sensor_events_header, sizeof(aic_sensors_event_t), SOCK_BLOCK_MODE);
 
     if (len <= 0) {
         ALOGE("sensors vhal receive sensor header message failed: %s ", strerror(errno));
         return;
     }
-    switch (sensor_events_header.type) {
-        case SENSOR_TYPE_ACCELEROMETER:
-            payload_len = 3 * sizeof(float);
-            break;
-        case SENSOR_TYPE_GYROSCOPE:
-            payload_len = 3 * sizeof(float);
-            break;
-        case SENSOR_TYPE_MAGNETIC_FIELD:
-            payload_len = 3 * sizeof(float);
-            break;
-        case SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED:
-            payload_len = 6 * sizeof(float);
-            break;
-        case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
-            payload_len = 6 * sizeof(float);
-            break;
-        case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
-            payload_len = 6 * sizeof(float);
-            break;
-        default:
-            payload_len = 0;
-            ALOGW("unsupported sensor type %d", sensor_events_header.type);
-            return;
+    int payload_len = get_payload_len(sensor_events_header.type);
+    if (payload_len == 0) {
+        return;
     }
 
     if (m_msg_mem_pool.empty()) {
@@ -677,6 +719,57 @@ static const struct sensor_t sSensorListInit[] = {
      .stringType             = "android.sensor.magnetic_field_uncalibrated",
      .requiredPermission     = 0,
      .flags                  = SENSOR_FLAG_CONTINUOUS_MODE,
+     .reserved               = {}},
+
+    {.name                   = "AIC Light sensor",
+     .vendor                 = "ACGSS",
+     .version                = 1,
+     .handle                 = ID_LIGHT,
+     .type                   = SENSOR_TYPE_LIGHT,
+     .maxRange               = 40000.0f,
+     .resolution             = 1.0f,
+     .power                  = 20.0f,
+     .minDelay               = 10000,
+     .maxDelay               = 500 * 1000,
+     .fifoReservedEventCount = 0,
+     .fifoMaxEventCount      = 0,
+     .stringType             = "android.sensor.light",
+     .requiredPermission     = 0,
+     .flags                  = SENSOR_FLAG_ON_CHANGE_MODE,
+     .reserved               = {}},
+
+    {.name                   = "AIC Ambient Temperature sensor",
+     .vendor                 = "ACGSS",
+     .version                = 1,
+     .handle                 = ID_TEMPERATURE,
+     .type                   = SENSOR_TYPE_AMBIENT_TEMPERATURE,
+     .maxRange               = 80.0f,
+     .resolution             = 1.0f,
+     .power                  = 0.0f,
+     .minDelay               = 10000,
+     .maxDelay               = 500 * 1000,
+     .fifoReservedEventCount = 0,
+     .fifoMaxEventCount      = 0,
+     .stringType             = "android.sensor.ambient_temperature",
+     .requiredPermission     = 0,
+     .flags                  = SENSOR_FLAG_ON_CHANGE_MODE,
+     .reserved               = {}},
+
+    {.name                   = "AIC Proximity sensor",
+     .vendor                 = "ACGSS",
+     .version                = 1,
+     .handle                 = ID_PROXIMITY,
+     .type                   = SENSOR_TYPE_PROXIMITY,
+     .maxRange               = 1.0f,
+     .resolution             = 1.0f,
+     .power                  = 20.0f,
+     .minDelay               = 10000,
+     .maxDelay               = 500 * 1000,
+     .fifoReservedEventCount = 0,
+     .fifoMaxEventCount      = 0,
+     .stringType             = "android.sensor.proximity",
+     .requiredPermission     = 0,
+     .flags                  = SENSOR_FLAG_WAKE_UP | SENSOR_FLAG_ON_CHANGE_MODE,
      .reserved               = {}},
 };
 
