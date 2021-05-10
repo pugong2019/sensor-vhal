@@ -24,6 +24,9 @@ std::unique_ptr<T> make_unique_ptr(Ts&&... params) {
 }
 
 SensorDevice::SensorDevice() {
+    m_pending_sensors = 0;
+    m_time_start = 0;
+    m_time_offset = 0;
     for (int idx = 0; idx < MAX_NUM_SENSORS; idx++) {
         m_sensors[idx].type = SENSOR_TYPE_META_DATA + 1;
         m_flush_count[idx]  = 0;
