@@ -121,7 +121,7 @@ int SockServer::check_new_connection() {
 
 /**
  * @brief check if there is new message from client
- * 
+ *
  * @return 0 for failure, (instance + 1) for disconnect instance, 0 for success
  */
 int32_t SockServer::check_new_message() {
@@ -197,7 +197,7 @@ int SockServer::send_data(const sock_client_proxy_t* client,  const void* data, 
     case SOCK_NONBLOCK_MODE:
         total_size = sock_server_send(m_server, client, p_src, left_size);
         break;
-    
+
     case SOCK_TIMEOUT_MODE:
         while(left_size > 0){
             int ret = sock_server_send(m_server, client, p_src, left_size);
@@ -239,7 +239,7 @@ int SockServer::send_data(const sock_client_proxy_t* client,  const void* data, 
             }
         }
         break;
-        
+
     default:
         ALOGE("not supported socket workmode");
         break;
@@ -249,12 +249,12 @@ int SockServer::send_data(const sock_client_proxy_t* client,  const void* data, 
 
 /**
  * @brief same as send_data, just choose the default client to send data
- * 
- * @param data 
- * @param len 
- * @param mode 
- * @param timeout_ms 
- * @return int 
+ *
+ * @param data
+ * @param len
+ * @param mode
+ * @param timeout_ms
+ * @return int
  */
 int SockServer::send_data_default(const void* data, int len, sock_work_mode_t mode, int timeout_ms) {
     return send_data(m_pclient_, data, len, mode, timeout_ms);
@@ -267,13 +267,13 @@ sock_conn_status_t SockServer::check_connection_default() {
 }
 /**
  * @brief recv data from client
- * 
- * @param client 
- * @param data 
- * @param len 
+ *
+ * @param client
+ * @param data
+ * @param len
  * @param mode : include three mode: SOCK_NONBLOCK_MODE as default mode
- * @param timeout_ms 
- * @return received data size 
+ * @param timeout_ms
+ * @return received data size
  */
 int SockServer::recv_data(const sock_client_proxy_t* client, void* data, int len, sock_work_mode_t mode, int timeout_ms) {
     if (m_server == nullptr || client == nullptr) return -1;
@@ -298,10 +298,10 @@ int SockServer::recv_data(const sock_client_proxy_t* client, void* data, int len
                     ALOGE("socket error: errno[%d]:%s, client fd: %d", errno, strerror(errno), m_server->client_slots[client->id]);
                     break;
                 }
-            } 
+            }
         }
         break;
-       
+
     case SOCK_NONBLOCK_MODE:
         total_size = sock_server_recv(m_server, client, p_src, left_size);
         break;
@@ -321,7 +321,7 @@ int SockServer::recv_data(const sock_client_proxy_t* client, void* data, int len
                         usleep(1000);
                         continue;
                     }
-                } else {  
+                } else {
                     ALOGE("socket error: errno[%d]:%s", errno, strerror(errno));
                     break;
                 }
@@ -443,7 +443,7 @@ int SockClient::send_data(const void* data, int len, sock_work_mode_t mode, int 
     case SOCK_NONBLOCK_MODE:
         total_size = sock_client_send(m_client, p_src, left_size);
         break;
-    
+
     case SOCK_TIMEOUT_MODE:
         while(left_size > 0){
             int ret = sock_client_send(m_client, p_src, left_size);
@@ -486,7 +486,7 @@ int SockClient::send_data(const void* data, int len, sock_work_mode_t mode, int 
             }
         }
         break;
-        
+
     default:
         ALOGE("not supported socket workmode");
         break;
@@ -496,12 +496,12 @@ int SockClient::send_data(const void* data, int len, sock_work_mode_t mode, int 
 
 /**
  * @brief recv data from client
- * 
- * @param data 
- * @param len 
+ *
+ * @param data
+ * @param len
  * @param mode : include three mode: SOCK_TIMEOUT_MODE as default mode
- * @param timeout_ms 
- * @return received data size 
+ * @param timeout_ms
+ * @return received data size
  */
 int SockClient::recv_data(void* data, int len, sock_work_mode_t mode, int timeout_ms) {
     if (!m_client) {
@@ -530,10 +530,10 @@ int SockClient::recv_data(void* data, int len, sock_work_mode_t mode, int timeou
                     ALOGE("socket error: errno[%d]:%s", errno, strerror(errno));
                     break;
                 }
-            } 
+            }
         }
         break;
-       
+
     case SOCK_NONBLOCK_MODE:
         total_size = sock_client_recv(m_client, data, left_size);
         break;
@@ -553,7 +553,7 @@ int SockClient::recv_data(void* data, int len, sock_work_mode_t mode, int timeou
                         usleep(1000);
                         continue;
                     }
-                } else {  
+                } else {
                     ALOGE("socket error: errno[%d]:%s", errno, strerror(errno));
                     break;
                 }

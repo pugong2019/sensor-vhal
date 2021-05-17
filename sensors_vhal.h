@@ -50,10 +50,11 @@
 
 #define SENSOR_VHAL_PORT_PROP      "virtual.sensor.tcp.port"
 #define SENSOR_VHAL_PORT           8772
-#define DEBUG_OPTION               false
 #define MAX_MSG_QUEUE_SIZE         128
 #define MEM_POOL_SIZE              16
 #define MAX_SENSOR_PAYLOAD_SIZE    (sizeof(float)*8)
+
+#define SYS_VHAL_PROP_LOG_TRACE_COUNT "sys.sensor.log_trace.interval"
 typedef struct {
     int32_t    sensor_type;       // acgmsg_sensor_type_t
     int32_t    enabled;       // acgmsg_sensor_status_t for cmd: ACG_SENSOR_ACTIVATE
@@ -128,6 +129,8 @@ private:
     uint32_t m_pending_sensors;
     int64_t m_time_start;
     int64_t m_time_offset;
+    int64_t m_log_trace_count;
+
     sensors_event_t m_sensors[MAX_NUM_SENSORS];
     SockServer* m_socket_server;
     sensor_config_msg_t m_sensor_config_status[MAX_NUM_SENSORS];
@@ -146,7 +149,7 @@ private:
     int sensor_device_pick_pending_event_locked(sensors_event_t* event);
     void sensor_event_callback(SockServer* sock, sock_client_proxy_t* client);
     void client_connected_callback(SockServer* sock, sock_client_proxy_t* client);
-    int get_index_from_type(int sensor_type);
+    int get_handle_from_type(int sensor_type);
     int get_payload_len(int sensor_type);
     const char* get_name_from_handle(int id);
 };

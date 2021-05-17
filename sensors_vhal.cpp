@@ -27,6 +27,7 @@ SensorDevice::SensorDevice() {
     m_pending_sensors = 0;
     m_time_start = 0;
     m_time_offset = 0;
+    m_log_trace_count = 50;
     for (int idx = 0; idx < MAX_NUM_SENSORS; idx++) {
         m_sensors[idx].type = SENSOR_TYPE_META_DATA + 1;
         m_flush_count[idx]  = 0;
@@ -49,6 +50,11 @@ SensorDevice::SensorDevice() {
     m_socket_server->register_listener_callback(std::bind(&SensorDevice::sensor_event_callback, this, _1, _2));
     m_socket_server->register_connected_callback(std::bind(&SensorDevice::client_connected_callback, this, _1, _2));
     m_socket_server->start();
+    char prop_value[PROP_VALUE_MAX] = {'\0'};
+    int len = __system_property_get(SYS_VHAL_PROP_LOG_TRACE_COUNT, prop_value);
+    if (len > 0) {
+        m_log_trace_count= atoi(prop_value);
+    }
 }
 
 SensorDevice::~SensorDevice() {
@@ -157,15 +163,8 @@ int SensorDevice::get_type_from_hanle(int handle) {
  */
 
 int SensorDevice::sensor_device_poll_event_locked() {
-#if DEBUG_OPTION
-    static double last_acc_time  = 0;
-    static double last_gyro_time = 0;
-    static double last_mag_time  = 0;
-    static int acc_count         = 0;
-    static int gyr_count         = 0;
-    static int mag_count         = 0;
-#endif
-
+    static double last_sensor_time[MAX_NUM_SENSORS];
+    static long long sensor_data_count[MAX_NUM_SENSORS];
     aic_sensors_event_t* new_sensor_events_ptr = nullptr;
     std::unique_ptr<std::vector<char>> buf_ptr;
     sensors_event_t* events = m_sensors;
@@ -207,15 +206,6 @@ int SensorDevice::sensor_device_poll_event_locked() {
                 events[ID_ACCELEROMETER].acceleration.z = new_sensor_events_ptr->data.fdata[2];
                 events[ID_ACCELEROMETER].timestamp      = new_sensor_events_ptr->timestamp;
                 events[ID_ACCELEROMETER].type           = SENSOR_TYPE_ACCELEROMETER;
-
-#if DEBUG_OPTION
-                acc_count++;
-                if (acc_count % 100 == 0) {
-                    ALOGD("[%-5d] Acc: %f,%f,%f, time = %.3fms", acc_count, new_sensor_events_ptr->data.fdata[0], new_sensor_events_ptr->data.fdata[1],
-                          new_sensor_events_ptr->data.fdata[2], ((double)(new_sensor_events_ptr->timestamp - last_acc_time)) / 1000000.0);
-                }
-                last_acc_time = new_sensor_events_ptr->timestamp;
-#endif
                 break;
 
             case SENSOR_TYPE_GYROSCOPE:
@@ -225,15 +215,6 @@ int SensorDevice::sensor_device_poll_event_locked() {
                 events[ID_GYROSCOPE].gyro.z    = new_sensor_events_ptr->data.fdata[2];
                 events[ID_GYROSCOPE].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_GYROSCOPE].type      = SENSOR_TYPE_GYROSCOPE;
-
-#if DEBUG_OPTION
-                gyr_count++;
-                if (gyr_count % 100 == 0) {
-                    ALOGD("[%-5d] Gyr: %f,%f,%f, time = %.3fms", gyr_count, new_sensor_events_ptr->data.fdata[0], new_sensor_events_ptr->data.fdata[1],
-                          new_sensor_events_ptr->data.fdata[2], ((double)(new_sensor_events_ptr->timestamp - last_gyro_time)) / 1000000.0);
-                }
-                last_gyro_time = new_sensor_events_ptr->timestamp;
-#endif
                 break;
 
             case SENSOR_TYPE_MAGNETIC_FIELD:
@@ -243,15 +224,6 @@ int SensorDevice::sensor_device_poll_event_locked() {
                 events[ID_MAGNETIC_FIELD].magnetic.z = new_sensor_events_ptr->data.fdata[2];
                 events[ID_MAGNETIC_FIELD].timestamp  = new_sensor_events_ptr->timestamp;
                 events[ID_MAGNETIC_FIELD].type       = SENSOR_TYPE_MAGNETIC_FIELD;
-
-#if DEBUG_OPTION
-                mag_count++;
-                if (mag_count % 100 == 0) {
-                    ALOGD("[%-5d] Mag: %f,%f,%f, time = %.3fms", mag_count, new_sensor_events_ptr->data.fdata[0], new_sensor_events_ptr->data.fdata[1],
-                          new_sensor_events_ptr->data.fdata[2], ((double)(new_sensor_events_ptr->timestamp - last_mag_time)) / 1000000.0);
-                }
-                last_mag_time = new_sensor_events_ptr->timestamp;
-#endif
                 break;
 
             case SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED:
@@ -300,6 +272,40 @@ int SensorDevice::sensor_device_poll_event_locked() {
                 ALOGW("unsupported sensor type: %d, continuing to receive next event", new_sensor_events_ptr->type);
                 continue;
         }
+
+        int handle = get_handle_from_type(sensor_type);
+        sensor_data_count[handle]++;
+        switch (sensor_type) {
+            case SENSOR_TYPE_ACCELEROMETER:
+            case SENSOR_TYPE_GYROSCOPE:
+            case SENSOR_TYPE_MAGNETIC_FIELD:
+                if (sensor_data_count[handle] % m_log_trace_count == 0) {
+                    ALOGD("[%-5lld] %s: [x=%f, y=%f, z=%f], time=%.3fms", sensor_data_count[handle], get_name_from_handle(handle), new_sensor_events_ptr->data.fdata[0], new_sensor_events_ptr->data.fdata[1],
+                        new_sensor_events_ptr->data.fdata[2], ((double)(new_sensor_events_ptr->timestamp - last_sensor_time[handle])) / 1000000.0);
+                }
+                break;
+            case SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED:
+            case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
+            case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
+                if (sensor_data_count[handle] % m_log_trace_count == 0) {
+                    ALOGD("[%-5lld] %s: [x=%f, y=%f, z=%f, x_bias=%f, y_bias=%f, z_bias=%f], time=%.3fms", sensor_data_count[handle], get_name_from_handle(handle),\
+                    new_sensor_events_ptr->data.fdata[0], new_sensor_events_ptr->data.fdata[1],
+                    new_sensor_events_ptr->data.fdata[2], new_sensor_events_ptr->data.fdata[3],
+                    new_sensor_events_ptr->data.fdata[4], new_sensor_events_ptr->data.fdata[5],
+                    ((double)(new_sensor_events_ptr->timestamp - last_sensor_time[handle])) / 1000000.0);
+                }
+                break;
+            case SENSOR_TYPE_LIGHT:
+            case SENSOR_TYPE_PROXIMITY:
+            case SENSOR_TYPE_AMBIENT_TEMPERATURE:
+                if (sensor_data_count[handle] % m_log_trace_count == 0) {
+                    ALOGD("[%-5lld] %s: [value=%f], time=%.3fms", sensor_data_count[handle], get_name_from_handle(handle), new_sensor_events_ptr->data.fdata[0],
+                    ((double)(new_sensor_events_ptr->timestamp - last_sensor_time[handle])) / 1000000.0);
+                }
+                break;
+        }
+
+        last_sensor_time[handle] = new_sensor_events_ptr->timestamp;
         break;
     }
 
@@ -482,7 +488,7 @@ int SensorDevice::sensor_device_flush(int handle) {
     return 0;
 }
 
-int SensorDevice::get_index_from_type(int sensor_type) {
+int SensorDevice::get_handle_from_type(int sensor_type) {
     int index = -1;
     switch (sensor_type) {
         case SENSOR_TYPE_ACCELEROMETER:
