@@ -46,7 +46,14 @@ SensorDevice::SensorDevice() {
         m_msg_mem_pool.emplace(make_unique_ptr<std::vector<char>>(buf_size));
     }
 
-    m_socket_server = new SockServer(virtual_sensor_port);
+    memset(buf, 0, PROPERTY_VALUE_MAX);
+    _sock_conn_type mConnType; // Type of socket UNIX/INET
+    if (property_get(CG_SENSOR_SERVICE_PROP, buf, NULL) > 0)
+        mConnType = SOCK_CONN_TYPE_INET_SOCK;
+    else
+        mConnType = SOCK_CONN_TYPE_UNIX_SOCK;
+
+    m_socket_server = new SockServer(virtual_sensor_port, mConnType);
     m_socket_server->register_listener_callback(std::bind(&SensorDevice::sensor_event_callback, this, _1, _2));
     m_socket_server->register_connected_callback(std::bind(&SensorDevice::client_connected_callback, this, _1, _2));
     m_socket_server->start();

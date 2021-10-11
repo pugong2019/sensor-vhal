@@ -39,8 +39,9 @@
 
 using namespace std;
 
-SockServer::SockServer(int port) {
+SockServer::SockServer(int port, int sockType) {
     m_port = port;
+    m_sock_type = sockType;
 }
 
 SockServer::~SockServer() {
@@ -62,7 +63,7 @@ SockServer::~SockServer() {
 int SockServer::start() {
     m_be_working = true;
     ALOGI("create new server: %d", m_port);
-    m_server = sock_server_init(SOCK_CONN_TYPE_INET_SOCK, m_port);
+    m_server = sock_server_init(m_sock_type, m_port);
     if (m_server == nullptr) return -1;
 
     for(int i = 0; i < MAX_CLIENTS; i++) {

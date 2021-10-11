@@ -43,7 +43,7 @@ public:
     typedef std::function<void(SockServer* sock, sock_client_proxy_t* client)> connected_callback_t;
     typedef std::function<void(SockServer* sock, sock_client_proxy_t* client)> disconnect_callback_t;
 
-    SockServer(int port);
+    SockServer(int port, int sockType);
     ~SockServer();
 
     int start();
@@ -91,6 +91,7 @@ private:
     void listener();
     int check_new_connection();
     int32_t check_new_message();
+    int m_sock_type;
 };
 
 

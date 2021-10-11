@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include "sock_utils.h"
 
+#define  CG_SENSOR_SERVICE_PROP "ro.vendor.sensors.cg.proxy"
 #define  SENSORS_SERVICE_NAME "sensors"
 #define  MAX_NUM_SENSORS 9
 #define  SUPPORTED_SENSORS  ((1<<MAX_NUM_SENSORS)-1)

@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+ifeq ($(USE_SENSOR_TEST), true)
 LOCAL_PATH := $(call my-dir)
 
 ##################test###########################
@@ -101,3 +102,4 @@ LOCAL_LDLIBS := -llog
 
 LOCAL_MODULE := test_host_client
 include $(BUILD_EXECUTABLE)
+endif

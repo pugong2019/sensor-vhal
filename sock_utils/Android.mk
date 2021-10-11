@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 #
+ifeq ($(USE_SENSOR_SOCKET_UTILS), true)
 LOCAL_PATH := $(call my-dir)
 
 #####################libsock_util###########################
@@ -40,4 +41,5 @@ LOCAL_MODULE := libsock_util
 include $(BUILD_SHARED_LIBRARY)
 
 include $(call all-makefiles-under, $(LOCAL_PATH))
+endif
 

@@ -30,6 +30,9 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <cutils/properties.h>
+#include <string>
+#include <log/log.h>
 
 #if DEBUG_SOCK_SERVER
 #define SOCK_SERVER_LOG(a) sock_log a;
@@ -49,8 +52,10 @@ sock_server_t* sock_server_init(int type, int port) {
     int socket_domain     = 0;
     sock_server_t* server = NULL;
     int ret               = 0;
+    std::string SocketPath;
 
     sock_log("sock_server_init(%s, %d) ...", type == SOCK_CONN_TYPE_INET_SOCK ? "INET" : "UNIX", port);
+
 
     if (SOCK_CONN_TYPE_INET_SOCK != type) {
         socket_domain = AF_UNIX;
@@ -58,12 +63,14 @@ sock_server_t* sock_server_init(int type, int port) {
         socket_domain = AF_INET;
     }
 
+
     int socketfd = socket(socket_domain, SOCK_STREAM, 0);
     if (socketfd < 0) {
         sock_log("sock error: create server socket failed!");
         return NULL;
     }
 
+if (socket_domain == AF_INET) {
     int on = 1;
     ret    = setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&on, sizeof(int));
     if (ret < 0) {
@@ -114,8 +121,9 @@ sock_server_t* sock_server_init(int type, int port) {
         close(socketfd);
         return NULL;
     }
-
+}
     if (SOCK_CONN_TYPE_UNIX_SOCK == type) {
+#if 0
         int unix_fd = open(SOCK_UTIL_DEFAULT_PATH, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IROTH | S_IWOTH);
         if (unix_fd < 0) {
             sock_log("open file:%s failed!", SOCK_UTIL_DEFAULT_PATH);
@@ -125,6 +133,52 @@ sock_server_t* sock_server_init(int type, int port) {
             sock_log("sock error: chmod %s to 064 failed!", SOCK_UTIL_DEFAULT_PATH);
         }
         close(unix_fd);
+#endif
+	char build_id_buf[PROPERTY_VALUE_MAX] = {'\0'};
+	property_get("ro.boot.container.id", build_id_buf, "");
+        std::string sock_path = "/ipc/sensors-socket";
+        sock_path.append(build_id_buf);
+        char *k8s_env_value = getenv("K8S_ENV");
+        SocketPath = (k8s_env_value != NULL && !strcmp(k8s_env_value, "true"))
+			                ? "/conn/sensors-socket" : sock_path.c_str();
+	struct sockaddr_un addr_un;
+	memset(&addr_un, 0, sizeof(addr_un));
+	addr_un.sun_family = AF_UNIX;
+	strncpy(&addr_un.sun_path[0], SocketPath.c_str(), strlen(SocketPath.c_str()));
+
+	int ret = 0;
+
+	ALOGI(" %s sensor socket server file is %s", __FUNCTION__, SocketPath.c_str());
+	if ((access(SocketPath.c_str(), F_OK)) != -1) {
+		ret = unlink(SocketPath.c_str());
+		if (ret < 0) {
+			ALOGE(LOG_TAG " %s Failed to unlink %s address %d, %s", __FUNCTION__,
+					SocketPath.c_str(), ret, strerror(errno));
+			close(socketfd);
+			return NULL;
+		}
+	}
+
+	ret = ::bind(socketfd, (struct sockaddr *)&addr_un,
+			sizeof(sa_family_t) + strlen(SocketPath.c_str()) + 1);
+	if (ret < 0) {
+		ALOGE(LOG_TAG " %s Failed to bind %s address %d, %s", __FUNCTION__, SocketPath.c_str(),
+				ret, strerror(errno));
+		close(socketfd);
+		return NULL;
+	}
+        struct stat st;
+        __mode_t mod = S_IRWXU | S_IRWXG | S_IRWXO;
+        if (fstat(socketfd, &st) == 0) {
+             mod |= st.st_mode;
+        }
+        chmod(SocketPath.c_str(), mod);
+        ret = listen(socketfd, 5);
+        if (ret < 0) {
+            ALOGE("%s Failed to listen on %s", __FUNCTION__, SocketPath.c_str());
+            close(socketfd);
+            return NULL;
+	}
     }
 
     if (listen(socketfd, SOCK_MAX_CLIENTS) < 0) {
