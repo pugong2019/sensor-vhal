@@ -48,8 +48,11 @@ SensorDevice::SensorDevice() {
 
     memset(buf, 0, PROPERTY_VALUE_MAX);
     _sock_conn_type mConnType; // Type of socket UNIX/INET
-    if (property_get(CG_SENSOR_SERVICE_PROP, buf, NULL) > 0)
-        mConnType = SOCK_CONN_TYPE_INET_SOCK;
+    if (property_get(SENSOR_SOCK_TYPE_PROP, buf, NULL) > 0)
+        if (!strcmp(buf, "INET"))
+            mConnType = SOCK_CONN_TYPE_INET_SOCK;
+        else
+            mConnType = SOCK_CONN_TYPE_UNIX_SOCK;
     else
         mConnType = SOCK_CONN_TYPE_UNIX_SOCK;
 
