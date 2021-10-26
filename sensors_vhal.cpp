@@ -68,8 +68,10 @@ SensorDevice::SensorDevice() {
 }
 
 SensorDevice::~SensorDevice() {
-    delete m_socket_server;
-    m_socket_server = nullptr;
+    if (m_socket_server != nullptr) {
+        delete m_socket_server;
+        m_socket_server = nullptr;
+    }
 }
 
 const char* SensorDevice::get_name_from_handle(int id) {
@@ -238,42 +240,45 @@ int SensorDevice::sensor_device_poll_event_locked() {
 
             case SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED:
                 new_sensors |= SENSORS_ACCELEROMETER_UNCALIBRATED;
-                memcpy(&events[ID_ACCELEROMETER_UNCALIBRATED].acceleration, new_sensor_events_ptr->data.fdata, payload_len);
+                memcpy(&events[ID_ACCELEROMETER_UNCALIBRATED].uncalibrated_accelerometer,
+                                        new_sensor_events_ptr->data.fdata, payload_len);
                 events[ID_ACCELEROMETER_UNCALIBRATED].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_ACCELEROMETER_UNCALIBRATED].type      = SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED;
                 break;
 
             case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
                 new_sensors |= SENSORS_GYROSCOPE_UNCALIBRATED;
-                memcpy(&events[ID_GYROSCOPE_UNCALIBRATED].gyro, new_sensor_events_ptr->data.fdata, payload_len);
+                memcpy(&events[ID_GYROSCOPE_UNCALIBRATED].uncalibrated_gyro,
+                            new_sensor_events_ptr->data.fdata, payload_len);
                 events[ID_GYROSCOPE_UNCALIBRATED].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_GYROSCOPE_UNCALIBRATED].type      = SENSOR_TYPE_GYROSCOPE_UNCALIBRATED;
                 break;
 
             case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
                 new_sensors |= SENSORS_MAGNETIC_FIELD_UNCALIBRATED;
-                memcpy(&events[ID_MAGNETIC_FIELD_UNCALIBRATED].magnetic, new_sensor_events_ptr->data.fdata, payload_len);
+                memcpy(&events[ID_MAGNETIC_FIELD].uncalibrated_magnetic,
+                        new_sensor_events_ptr->data.fdata, payload_len);
                 events[ID_MAGNETIC_FIELD_UNCALIBRATED].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_MAGNETIC_FIELD_UNCALIBRATED].type      = SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED;
                 break;
 
             case SENSOR_TYPE_LIGHT:
                 new_sensors |= SENSORS_LIGHT;
-                memcpy(&events[ID_LIGHT].magnetic, new_sensor_events_ptr->data.fdata, payload_len);
+                events[ID_LIGHT].light = new_sensor_events_ptr->data.fdata[0];
                 events[ID_LIGHT].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_LIGHT].type      = SENSOR_TYPE_LIGHT;
                 break;
 
             case SENSOR_TYPE_PROXIMITY:
                 new_sensors |= SENSORS_PROXIMITY;
-                memcpy(&events[ID_PROXIMITY].magnetic, new_sensor_events_ptr->data.fdata, payload_len);
+                events[ID_PROXIMITY].distance = new_sensor_events_ptr->data.fdata[0];
                 events[ID_PROXIMITY].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_PROXIMITY].type      = SENSOR_TYPE_PROXIMITY;
                 break;
 
             case SENSOR_TYPE_AMBIENT_TEMPERATURE:
                 new_sensors |= SENSORS_TEMPERATURE;
-                memcpy(&events[ID_TEMPERATURE].magnetic, new_sensor_events_ptr->data.fdata, payload_len);
+                events[ID_TEMPERATURE].temperature = new_sensor_events_ptr->data.fdata[0];
                 events[ID_TEMPERATURE].timestamp = new_sensor_events_ptr->timestamp;
                 events[ID_TEMPERATURE].type      = SENSOR_TYPE_AMBIENT_TEMPERATURE;
                 break;

@@ -88,7 +88,8 @@ sock_client_t *sock_client_init(int type, const char *server_path, int port) {
                 return NULL;
             } else {
                 // strcpy(serv_addr_un.sun_path, server_path);
-                strncpy(serv_addr_un.sun_path, server_path, sizeof(serv_addr_un.sun_path));
+                strncpy(serv_addr_un.sun_path, server_path, (sizeof(serv_addr_un.sun_path) - 1));
+                serv_addr_un.sun_path[sizeof(serv_addr_un.sun_path) - 1] = '\0';
             }
         }
         ret = connect(socketfd, (struct sockaddr *)&serv_addr_un, sizeof(struct sockaddr_un));
@@ -135,7 +136,8 @@ sock_client_t *sock_client_init(int type, const char *server_path, int port) {
         delete client;
         return NULL;
     } else {
-        strncpy(client->path, server_path, sizeof(client->path));
+        strncpy(client->path, server_path, (sizeof(client->path) - 1));
+        client->path[sizeof(client->path) - 1] = '\0';
     }
 
     SOCK_CLIENT_LOG(("sock_client_init(%s, %s, %d) returns %p", type == SOCK_CONN_TYPE_INET_SOCK ? "INET" : "UNIX", server_path, port, client));
