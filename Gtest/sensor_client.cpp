@@ -56,6 +56,7 @@ SensorClient::SensorClient() {
     }
 
     m_client_sock->register_connected_callback(std::bind(&SensorClient::vhal_connected_callback, this, std::placeholders::_1));
+    m_client_sock->register_listener_callback(std::bind(&SensorClient::vhal_listener_handler, this, std::placeholders::_1));
     m_client_sock->start();
 }
 
@@ -72,8 +73,43 @@ bool SensorClient::is_connected() {
 }
 
 void SensorClient::vhal_connected_callback(SockClient *sock) {
-    ALOGI("connected to server successfully");
+    ALOGI("Connected to server successfully");
     (void)(sock);
     m_connected = true;
 }
 
+
+void SensorClient::vhal_listener_handler(SockClient* client) {
+    sensor_config_msg_t sensor_ctrl_msg;
+    char* pointer   = (char*)(&sensor_ctrl_msg);
+    int len         = sizeof(sensor_config_msg_t);
+    int retry_count = 30;
+    int left_size   = len;
+    while (left_size > 0) {
+        int ret = client->recv_data(pointer, left_size);
+        if (ret <= 0) {
+            if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN) {
+                usleep(1000);
+                if ((retry_count--) < 0) {
+                    ALOGW("[timeout], failed to recv sensor config data from vhal:target = %d, recved len = %d, [%s], \n", len, len - left_size, strerror(errno));
+                    return;
+                }
+                continue;
+            } else {
+                ALOGW("failed to recv sensor config data from vhal: %s\n", strerror(errno));
+                return;
+            }
+        }
+        // ALOGD("read. data len: %d\n", len);
+        left_size -= ret;
+        pointer += ret;
+    }
+
+    ALOGI("receive config message from sensor vhal, sensor type=%d, enabled=%d, sample period=%d",
+        sensor_ctrl_msg.sensor_type, sensor_ctrl_msg.enabled, sensor_ctrl_msg.sample_period);
+    m_sensor_num++;
+}
+
+int SensorClient::get_sensor_num() {
+    return m_sensor_num;
+}

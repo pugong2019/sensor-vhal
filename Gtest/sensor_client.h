@@ -45,7 +45,9 @@ public:
 
 private:
     void vhal_connected_callback(SockClient *sock);
+    void vhal_listener_handler(SockClient* client);
     bool is_running;
     bool m_connected = false;
+    int m_sensor_num = 0;
     SockClient* m_client_sock = nullptr;
 };
