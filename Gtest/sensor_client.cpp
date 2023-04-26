@@ -31,8 +31,30 @@ SensorClient::SensorClient() {
     if (property_get(SENSOR_VHAL_PORT_PROP, buf, NULL) > 0) {
         sensor_port = atoi(buf);
     }
-    m_client_sock = new SockClient((char*)LOCAL_VHAL_IP, sensor_port);
-    ALOGI("SensorClient: LOCAL_VHAL_IP = %s, sensor_port = %d", LOCAL_VHAL_IP, sensor_port);
+
+    std::string SocketPath;
+    char build_id_buf[PROPERTY_VALUE_MAX] = {'\0'};
+	property_get("ro.boot.container.id", build_id_buf, "");
+    std::string sock_path = "/ipc/sensors-socket";
+    sock_path.append(build_id_buf);
+    char *k8s_env_value = getenv("K8S_ENV");
+    SocketPath = (k8s_env_value != NULL && !strcmp(k8s_env_value, "true"))
+			                ? "/conn/sensors-socket" : sock_path.c_str();
+
+    if (property_get(SENSOR_SOCK_TYPE_PROP, buf, NULL) > 0) {
+        if (!strcmp(buf, "INET")) {
+            m_client_sock = new SockClient((char*)LOCAL_VHAL_IP, sensor_port);
+            ALOGI("SensorClient: LOCAL_VHAL_IP = %s, sensor_port = %d", LOCAL_VHAL_IP, sensor_port);
+
+        } else {
+            m_client_sock = new SockClient(SocketPath.c_str());
+            ALOGI("SensorClient: LOCAL_VHAL_IP = %s UNIX Type", SocketPath.c_str());
+        }
+    } else {
+        m_client_sock = new SockClient(SocketPath.c_str());
+        ALOGI("SensorClient: LOCAL_VHAL_IP = %s UNIX Type", SocketPath.c_str());
+    }
+
     m_client_sock->register_connected_callback(std::bind(&SensorClient::vhal_connected_callback, this, std::placeholders::_1));
     m_client_sock->start();
 }
