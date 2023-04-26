@@ -4,7 +4,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
-#include <queue>
 #include <vector>
 #include <log/log.h>
 #include <queue>
