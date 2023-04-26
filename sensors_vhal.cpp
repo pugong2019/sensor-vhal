@@ -117,7 +117,7 @@ int64_t SensorDevice::now_ns(void) {
 int SensorDevice::sensor_device_send_config_msg(const void* cmd, size_t len) {
     sock_client_proxy_t* client = m_socket_server->get_sock_client();
     if (!client) {
-        ALOGE("sensor client has not connected, wait...");
+        ALOGE("HACKATHON_DEBUG: sensor client has not connected, wait...");
         return 0;  // set 0 as success. or SensorService may crash
     }
     int ret = m_socket_server->send_data(client, cmd, len);
@@ -295,7 +295,7 @@ int SensorDevice::sensor_device_poll_event_locked() {
             case SENSOR_TYPE_GYROSCOPE:
             case SENSOR_TYPE_MAGNETIC_FIELD:
                 if (sensor_data_count[handle] % m_log_trace_count == 0) {
-                    ALOGD("[%-5lld] %s: [x=%f, y=%f, z=%f], time=%.3fms", sensor_data_count[handle], get_name_from_handle(handle), new_sensor_events_ptr->data.fdata[0], new_sensor_events_ptr->data.fdata[1],
+                    ALOGD("HACKATHON_DEBUG: [%-5lld] %s: [x=%f, y=%f, z=%f], time=%.3fms", sensor_data_count[handle], get_name_from_handle(handle), new_sensor_events_ptr->data.fdata[0], new_sensor_events_ptr->data.fdata[1],
                         new_sensor_events_ptr->data.fdata[2], ((double)(new_sensor_events_ptr->timestamp - last_sensor_time[handle])) / 1000000.0);
                 }
                 break;
@@ -303,7 +303,7 @@ int SensorDevice::sensor_device_poll_event_locked() {
             case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
             case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
                 if (sensor_data_count[handle] % m_log_trace_count == 0) {
-                    ALOGD("[%-5lld] %s: [x=%f, y=%f, z=%f, x_bias=%f, y_bias=%f, z_bias=%f], time=%.3fms", sensor_data_count[handle], get_name_from_handle(handle),\
+                    ALOGD("HACKATHON_DEBUG: [%-5lld] %s: [x=%f, y=%f, z=%f, x_bias=%f, y_bias=%f, z_bias=%f], time=%.3fms", sensor_data_count[handle], get_name_from_handle(handle),\
                     new_sensor_events_ptr->data.fdata[0], new_sensor_events_ptr->data.fdata[1],
                     new_sensor_events_ptr->data.fdata[2], new_sensor_events_ptr->data.fdata[3],
                     new_sensor_events_ptr->data.fdata[4], new_sensor_events_ptr->data.fdata[5],
@@ -314,7 +314,7 @@ int SensorDevice::sensor_device_poll_event_locked() {
             case SENSOR_TYPE_PROXIMITY:
             case SENSOR_TYPE_AMBIENT_TEMPERATURE:
                 if (sensor_data_count[handle] % m_log_trace_count == 0) {
-                    ALOGD("[%-5lld] %s: [value=%f], time=%.3fms", sensor_data_count[handle], get_name_from_handle(handle), new_sensor_events_ptr->data.fdata[0],
+                    ALOGD("HACKATHON_DEBUG: [%-5lld] %s: [value=%f], time=%.3fms", sensor_data_count[handle], get_name_from_handle(handle), new_sensor_events_ptr->data.fdata[0],
                     ((double)(new_sensor_events_ptr->timestamp - last_sensor_time[handle])) / 1000000.0);
                 }
                 break;
@@ -424,7 +424,7 @@ int SensorDevice::sensor_device_activate(int handle, int enabled) {
     m_mutex.lock();
     m_sensor_config_status[handle].sensor_type = id;
     m_sensor_config_status[handle].enabled     = enabled;
-    ALOGI("activate: sensor type=%d, enabled=%d, handle=%s(%d)", id, enabled, get_name_from_handle(handle), handle);
+    ALOGI("HACKATHON_DEBUG: activate: sensor type=%d, enabled=%d, handle=%s(%d)", id, enabled, get_name_from_handle(handle), handle);
     if (!enabled) {
         int ret = sensor_device_send_config_msg(&m_sensor_config_status[handle], sizeof(sensor_config_msg_t));
         if (ret < 0) {
@@ -450,7 +450,7 @@ int SensorDevice::sensor_device_batch(int handle, int64_t sampling_period_ns) {
     m_sensor_config_status[handle].enabled       = 1;
     m_sensor_config_status[handle].sample_period = sampling_period_ms;
 
-    ALOGI("batch: sensor type=%d, sample_period=%dms, handle=%s(%d)", sensor_type, sampling_period_ms, get_name_from_handle(handle), handle);
+    ALOGI("HACKATHON_DEBUG: batch: sensor type=%d, sample_period=%dms, handle=%s(%d)", sensor_type, sampling_period_ms, get_name_from_handle(handle), handle);
     int ret = sensor_device_send_config_msg(&m_sensor_config_status[handle], sizeof(sensor_config_msg_t));
     m_mutex.unlock();
 
@@ -474,7 +474,7 @@ int SensorDevice::sensor_device_set_delay(int handle, int64_t ns) {
     m_sensor_config_status[handle].enabled       = 1;
     m_sensor_config_status[handle].sample_period = sampling_period_ms;
 
-    ALOGI("set_delay: sensor type=%d, sample_period=%dms, handle=%s(%d)", sensor_type, sampling_period_ms, get_name_from_handle(handle), handle);
+    ALOGI("HACKATHON_DEBUG: set_delay: sensor type=%d, sample_period=%dms, handle=%s(%d)", sensor_type, sampling_period_ms, get_name_from_handle(handle), handle);
     int ret = sensor_device_send_config_msg(&m_sensor_config_status[handle], sizeof(sensor_config_msg_t));
     m_mutex.unlock();
 
@@ -590,7 +590,7 @@ void SensorDevice::sensor_event_callback(SockServer* sock, sock_client_proxy_t* 
 }
 
 void SensorDevice::client_connected_callback(SockServer* sock, sock_client_proxy_t* client) {
-    ALOGD("sensor client connected to vhal successfully");
+    ALOGD("HACKATHON_DEBUG: sensor client connected to vhal successfully");
     for (int i = 0; i < MAX_NUM_SENSORS; i++) {
         m_mutex.lock();
         sensor_device_send_config_msg(m_sensor_config_status + i, sizeof(sensor_config_msg_t));
