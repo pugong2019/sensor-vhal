@@ -39,6 +39,8 @@
 
 using namespace std;
 
+#define LOG_TAG "SensorClient_1"
+
 SockServer::SockServer(int port, int sockType) {
     m_port = port;
     m_sock_type = sockType;
@@ -357,7 +359,7 @@ SockClient::SockClient(char* ip, int port, float timeout) {
     m_port = port;
     m_ip = new char[strlen(ip) + 1];
     strcpy(m_ip, ip);
-
+    ALOGW("SockClient() constructor");
     if (timeout >= 0) m_timeout = timeout;
     m_conn_type = SOCK_CONN_TYPE_INET_SOCK;
 }
@@ -402,6 +404,7 @@ void SockClient::join(){
 }
 
 int SockClient::connect_to_server(){
+    ALOGW("connect_to_server");
     while (!m_client){
         m_client = sock_client_init(m_conn_type, m_ip, m_port);
         if(!m_client){

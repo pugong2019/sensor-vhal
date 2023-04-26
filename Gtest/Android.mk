@@ -2,6 +2,7 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_LDLIBS += -landroid -llog
+LOCAL_CFLAGS += -std=c++11
 LOCAL_CFLAGS += -Wno-unused-parameter -Wno-macro-redefined -fexceptions
 
 LOCAL_MODULE_TAGS:= optional
@@ -22,9 +23,9 @@ LOCAL_C_INCLUDES += \
 LOCAL_SRC_FILES := \
     main.cpp \
     sensor_client.cpp \
-    $(LOCAL_PATH)/../sock_utils/sock_utils.cpp \
-    $(LOCAL_PATH)/../sock_utils/sock_client.cpp \
-    $(LOCAL_PATH)/../sock_utils/sock_server.cpp
+    ../sock_utils/sock_utils.cpp \
+    ../sock_utils/sock_client.cpp \
+    ../sock_utils/sock_server.cpp
 
 LOCAL_MODULE:= SensorTest
 
