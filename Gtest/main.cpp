@@ -16,22 +16,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "sensor_client.h"
+// #include "sensor_client.h"
+#include "SensorFixture.h"
 
 using namespace std;
 
 int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
-    SensorClient *sensor_client = new SensorClient();
-    if(sensor_client->is_connected()) {
-        ;
-    }
-    while (true) {
-        usleep(100*1000);
-    }
-    delete sensor_client;
-    sensor_client = nullptr;
-    return 0;
+    setenv("TERM", "xterm-color", true);
+    testing::InitGoogleTest(&argc, argv);
+
+    return RUN_ALL_TESTS();
 }
 
