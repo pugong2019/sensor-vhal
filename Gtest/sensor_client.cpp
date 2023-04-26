@@ -108,6 +108,13 @@ void SensorClient::vhal_listener_handler(SockClient* client) {
     ALOGI("receive config message from sensor vhal, sensor type=%d, enabled=%d, sample period=%d",
         sensor_ctrl_msg.sensor_type, sensor_ctrl_msg.enabled, sensor_ctrl_msg.sample_period);
     m_sensor_num++;
+    if(sensor_ctrl_msg.sensor_type == ACG_SENSOR_TYPE_ACCELEROMETER) {
+        if(sensor_ctrl_msg.enabled) {
+            m_acc_enabled = true;
+        } else {
+            m_acc_enabled = false;
+        }
+    }
 }
 
 int SensorClient::get_sensor_num() {
