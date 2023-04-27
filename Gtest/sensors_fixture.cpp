@@ -27,6 +27,18 @@
 #define DISABLED 0
 #define DATA_NUM 5
 #define SAMPLE_PERIOD_NS         50*10000000
+#define UNUSED_FLAG 0
+
+extern int sensor_poll_events(struct sensors_poll_device_t* dev0, sensors_event_t* data, int count);
+extern int sensor_activate(struct sensors_poll_device_t* dev0, int handle, int enabled);
+extern int sensor_batch(struct sensors_poll_device_1* dev0, int handle, int flags __unused, \
+                        int64_t sampling_period_ns, int64_t max_report_latency_ns __unused);
+extern int sensor_set_delay(struct sensors_poll_device_t* dev0, int handle __unused, int64_t ns);
+extern int sensor_flush(struct sensors_poll_device_1* dev0, int handle);
+extern int sensor_close(struct hw_device_t* dev);
+
+SensorDevice g_test_dev;
+sensors_event_t g_data[DATA_NUM];
 
 TEST_F(SensorsFixture, SocketConnectionCheck)
 {
@@ -58,32 +70,37 @@ TEST_F(SensorsFixture, SensorsTypeCheck)
 TEST_F(SensorsFixture, ActivateMagneticFiledEvents)
 {
     this_thread::sleep_for(std::chrono::milliseconds(1000));
-    ASSERT_GT(0, m_sensor_dev.sensor_device_activate(INVALID_SENSOR_HANDLE, ENABLED));
-    ASSERT_EQ(0, m_sensor_dev.sensor_device_activate(ID_MAGNETIC_FIELD, ENABLED));
+    ASSERT_GT(0, sensor_activate((sensors_poll_device_t*)&g_test_dev, INVALID_SENSOR_HANDLE, ENABLED));
+    ASSERT_EQ(0, sensor_activate((sensors_poll_device_t*)&g_test_dev, ID_MAGNETIC_FIELD, ENABLED));
 }
 
 TEST_F(SensorsFixture, BatchMagneticFiledEvents)
 {
     this_thread::sleep_for(std::chrono::milliseconds(1000));
-    uint64_t sample_period = 50000000; //ns
-    ASSERT_GT(0, m_sensor_dev.sensor_device_batch(INVALID_SENSOR_HANDLE, sample_period));
-    ASSERT_EQ(0, m_sensor_dev.sensor_device_batch(ID_MAGNETIC_FIELD, sample_period));
+    ASSERT_GT(0, sensor_batch((struct sensors_poll_device_1*)&g_test_dev, INVALID_SENSOR_HANDLE, UNUSED_FLAG, SAMPLE_PERIOD_NS, UNUSED_FLAG));
+    ASSERT_EQ(0, sensor_batch((struct sensors_poll_device_1*)&g_test_dev, ID_MAGNETIC_FIELD, UNUSED_FLAG, SAMPLE_PERIOD_NS, UNUSED_FLAG));
 }
 
 TEST_F(SensorsFixture, SetDelayMagneticFiledEvents)
 {
     this_thread::sleep_for(std::chrono::milliseconds(1000));
-    uint64_t sample_period = 50000000;
-    ASSERT_GT(0, m_sensor_dev.sensor_device_set_delay(INVALID_SENSOR_HANDLE, sample_period));
-    ASSERT_EQ(0, m_sensor_dev.sensor_device_set_delay(ID_MAGNETIC_FIELD, sample_period));
+    ASSERT_GT(0, sensor_set_delay((sensors_poll_device_t*)&g_test_dev, INVALID_SENSOR_HANDLE, SAMPLE_PERIOD_NS));
+    ASSERT_EQ(0, sensor_set_delay((sensors_poll_device_t*)&g_test_dev, ID_MAGNETIC_FIELD, SAMPLE_PERIOD_NS));
 }
 
-TEST_F(SensorsFixture, PollEvents)
+TEST_F(SensorsFixture, PollEventsWithInvalidDataPtr)
 {
     this_thread::sleep_for(std::chrono::milliseconds(1000));
-    ASSERT_EQ(0, m_sensor_dev.sensor_device_activate(ID_MAGNETIC_FIELD, ENABLED));
-    ASSERT_EQ(0, m_sensor_dev.sensor_device_batch(ID_MAGNETIC_FIELD, SAMPLE_PERIOD_NS));
-    sensors_event_t data[DATA_NUM];
-    ASSERT_EQ(DATA_NUM, m_sensor_dev.sensor_device_poll(data, DATA_NUM));
+    ASSERT_EQ(0, sensor_activate((sensors_poll_device_t*)&g_test_dev, INVALID_SENSOR_HANDLE, ENABLED));
+    ASSERT_EQ(0, sensor_batch((struct sensors_poll_device_1*)&g_test_dev, ID_MAGNETIC_FIELD, UNUSED_FLAG, SAMPLE_PERIOD_NS, UNUSED_FLAG));
+    ASSERT_GT(0, sensor_poll_events((sensors_poll_device_t*)&g_test_dev, nullptr, DATA_NUM));
+}
+
+TEST_F(SensorsFixture, PollEventsWithInvalidCount)
+{
+    this_thread::sleep_for(std::chrono::milliseconds(1000));
+    ASSERT_EQ(0, sensor_activate((sensors_poll_device_t*)&g_test_dev, INVALID_SENSOR_HANDLE, ENABLED));
+    ASSERT_EQ(0, sensor_batch((struct sensors_poll_device_1*)&g_test_dev, ID_MAGNETIC_FIELD, UNUSED_FLAG, SAMPLE_PERIOD_NS, UNUSED_FLAG));
+    ASSERT_GT(0, sensor_poll_events((sensors_poll_device_t*)&g_test_dev, g_data, -DATA_NUM));
 }
 
