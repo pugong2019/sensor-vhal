@@ -36,7 +36,8 @@ public:
 
 private:
     void vhal_connected_callback(SockClient *sock);
-    void vhal_listener_handler(SockClient* client);
+    void vhal_disconnected_callback(SockClient *sock)
+    void vhal_message_callback(SockClient* client);
     bool m_connected = false;
     bool m_acc_enabled = false;
     int m_sensor_num = 0;

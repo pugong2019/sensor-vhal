@@ -54,14 +54,16 @@ SensorClient::SensorClient() {
     } else {
         m_client_sock = new SockClient(SocketPath.c_str());
     }
-
     m_client_sock->register_connected_callback(std::bind(&SensorClient::vhal_connected_callback, this, std::placeholders::_1));
-    m_client_sock->register_listener_callback(std::bind(&SensorClient::vhal_listener_handler, this, std::placeholders::_1));
+    m_client_sock->register_connected_callback(std::bind(&SensorClient::vhal_disconnected_callback, this, std::placeholders::_1));
+    m_client_sock->register_listener_callback(std::bind(&SensorClient::vhal_message_callback, this, std::placeholders::_1));
     m_client_sock->start();
 }
 
 
 SensorClient::~SensorClient() {
+    m_acc_enabled = false;
+    m_connected = false;
     if(m_client_sock) {
         delete m_client_sock;
         m_client_sock = nullptr;
@@ -73,13 +75,19 @@ bool SensorClient::is_connected() {
 }
 
 void SensorClient::vhal_connected_callback(SockClient *sock) {
+    ALOGI("disconnected to server");
+    (void)(sock);
+    m_connected = false;
+}
+
+void SensorClient::vhal_disconnected_callback(SockClient *sock) {
     ALOGI("connected to server successfully");
     (void)(sock);
     m_connected = true;
 }
 
 
-void SensorClient::vhal_listener_handler(SockClient* client) {
+void SensorClient::vhal_message_callback(SockClient* client) {
     sensor_config_msg_t sensor_ctrl_msg;
     char* pointer   = (char*)(&sensor_ctrl_msg);
     int len         = sizeof(sensor_config_msg_t);

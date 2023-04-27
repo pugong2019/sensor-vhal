@@ -16,27 +16,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _SENSOR_FIXTUREL_H
-#define _SENSOR_FIXTUREL_H
+#ifndef _SENSOR_FIXTURE_H
+#define _SENSOR_FIXTURE_H
 
 #include "gtest/gtest.h"
 #include "sensor_client.h"
 #include "sensors_helper.h"
 
-#define LOG_TAG "SensorFixture"
+#define LOG_TAG "SensorsFixture"
 
 class SensorFixture : public ::testing::Test {
 public:
     virtual void SetUp() {
         // Code here will be called immediately after the constructor (right
         // before each test).
-        ALOGI("Call SensorFixture::SetUp()");
+        ALOGI("Call SensorsFixture::SetUp()");
     }
 
     virtual void TearDown() {
         // Code here will be called immediately after each test (right
         // before the destructor).
-        ALOGI("Call SensorFixture::TearDown()");
+        ALOGI("Call SensorsFixture::TearDown()");
     }
 public:
     SensorClient m_sensor_client;
