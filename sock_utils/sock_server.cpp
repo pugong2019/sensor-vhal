@@ -148,7 +148,7 @@ if (socket_domain == AF_INET) {
 
 	int ret = 0;
 
-	ALOGI(" %s sensor socket server file is %s", __FUNCTION__, SocketPath.c_str());
+	ALOGI("%s sensor socket server file is %s", __FUNCTION__, SocketPath.c_str());
 	if ((access(SocketPath.c_str(), F_OK)) != -1) {
 		ret = unlink(SocketPath.c_str());
 		if (ret < 0) {

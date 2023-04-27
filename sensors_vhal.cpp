@@ -809,29 +809,29 @@ int sensors__get_sensors_list(struct sensors_module_t* module __unused, struct s
 
 int open_sensors(const struct hw_module_t* module, const char* name, struct hw_device_t** device) {
     int status = -EINVAL;
-    ALOGD("open_sensors");
-    if (!strcmp(name, SENSORS_HARDWARE_POLL)) {
-        SensorDevice* dev = new SensorDevice();
+//     ALOGD("open_sensors");
+//     if (!strcmp(name, SENSORS_HARDWARE_POLL)) {
+//         SensorDevice* dev = new SensorDevice();
 
-        // memset(dev, 0, sizeof(*dev));
-        dev->device.common.tag     = HARDWARE_DEVICE_TAG;
-        dev->device.common.version = SENSORS_DEVICE_API_VERSION_1_3;
-        dev->device.common.module  = (struct hw_module_t*)module;
-        dev->device.common.close   = sensor_close;
-        dev->device.poll           = sensor_poll_events;
-        dev->device.activate       = sensor_activate;
-        dev->device.setDelay       = sensor_set_delay;
+//         // memset(dev, 0, sizeof(*dev));
+//         dev->device.common.tag     = HARDWARE_DEVICE_TAG;
+//         dev->device.common.version = SENSORS_DEVICE_API_VERSION_1_3;
+//         dev->device.common.module  = (struct hw_module_t*)module;
+//         dev->device.common.close   = sensor_close;
+//         dev->device.poll           = sensor_poll_events;
+//         dev->device.activate       = sensor_activate;
+//         dev->device.setDelay       = sensor_set_delay;
 
-        // (dev->sensors[i].type == SENSOR_TYPE_META_DATA) is
-        // sticky. Don't start off with that setting.
-// Version 1.3-specific functions
-#if defined(SENSORS_DEVICE_API_VERSION_1_3)
-        dev->device.batch = sensor_batch;
-        dev->device.flush = sensor_flush;
-#endif
-        *device = &dev->device.common;
-        status  = 0;
-    };
+//         // (dev->sensors[i].type == SENSOR_TYPE_META_DATA) is
+//         // sticky. Don't start off with that setting.
+// // Version 1.3-specific functions
+// #if defined(SENSORS_DEVICE_API_VERSION_1_3)
+//         dev->device.batch = sensor_batch;
+//         dev->device.flush = sensor_flush;
+// #endif
+//         *device = &dev->device.common;
+//         status  = 0;
+//     };
     return status;
 }
 

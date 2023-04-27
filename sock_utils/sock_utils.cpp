@@ -62,7 +62,7 @@ SockServer::~SockServer() {
 
 int SockServer::start() {
     m_be_working = true;
-    ALOGI("create new server: %d", m_port);
+    ALOGI("create new server: %s", m_sock_type == SOCK_CONN_TYPE_INET_SOCK ? "INET":"UNIX");
     m_server = sock_server_init(m_sock_type, m_port);
     if (m_server == nullptr) return -1;
 
@@ -86,6 +86,12 @@ void SockServer::join() {
 
 void SockServer::listener() {
     ALOGI("server listener thread start!");
+    if(!m_server) {
+        ALOGI("server == nullptr");
+    }
+    if(!m_be_working) {
+        ALOGI("m_be_working == false");
+    }
     while(m_be_working && (m_server != nullptr)) {
         check_new_connection();
         check_new_message();

@@ -35,7 +35,7 @@ SensorsClient::SensorsClient() {
     if (property_get(SENSOR_VHAL_PORT_PROP, buf, NULL) > 0) {
         sensor_port = atoi(buf);
     }
-
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); //Make sure server init complete.
     std::string SocketPath;
     char build_id_buf[PROPERTY_VALUE_MAX] = {'\0'};
 	property_get("ro.boot.container.id", build_id_buf, "");
