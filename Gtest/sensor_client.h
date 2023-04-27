@@ -16,17 +16,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <iostream>
 #include <log/log.h>
-#include <array>
-#include <atomic>
-#include <chrono>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <thread>
-#include <vector>
 #include "sock_utils.h"
 #include "sensors_vhal.h"
 

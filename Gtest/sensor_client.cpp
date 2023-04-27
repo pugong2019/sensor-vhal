@@ -15,6 +15,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
+#ifndef _SENSORS_CLIENT_H
+#define _SENSORS_CLIENT_H
+
 #include <log/log.h>
 #include "sensor_client.h"
 #include "sock_utils.h"
@@ -115,3 +119,5 @@ void SensorClient::vhal_listener_handler(SockClient* client) {
 int SensorClient::get_sensor_num() {
     return m_sensor_num;
 }
+
+#endif
