@@ -406,7 +406,7 @@ int SockClient::connect_to_server(){
         m_client = sock_client_init(m_conn_type, m_ip, m_port);
         if(!m_client){
             ALOGW("falied to connect to server [%s:%d], [errno: %d] %s", m_ip, m_port, errno, strerror(errno));
-            sleep(m_timeout);
+            usleep(m_timeout * 1000 * 1000);
             ALOGI("reconnect to server, timeout = %.3fs\n", m_timeout);
         }
 
