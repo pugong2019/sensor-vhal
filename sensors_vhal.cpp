@@ -598,7 +598,7 @@ void SensorDevice::client_connected_callback(SockServer* sock, sock_client_proxy
     }
 }
 
-static int sensor_poll_events(struct sensors_poll_device_t* dev0, sensors_event_t* data, int count) {
+int sensor_poll_events(struct sensors_poll_device_t* dev0, sensors_event_t* data, int count) {
     if (count <= 0) {
         return -EINVAL;
     }
@@ -606,27 +606,27 @@ static int sensor_poll_events(struct sensors_poll_device_t* dev0, sensors_event_
     return dev->sensor_device_poll(data, count);
 }
 
-static int sensor_activate(struct sensors_poll_device_t* dev0, int handle, int enabled) {
+int sensor_activate(struct sensors_poll_device_t* dev0, int handle, int enabled) {
     SensorDevice* dev = (SensorDevice*)dev0;
     return dev->sensor_device_activate(handle, enabled);
 }
 
-static int sensor_batch(struct sensors_poll_device_1* dev0, int handle, int flags __unused, int64_t sampling_period_ns, int64_t max_report_latency_ns __unused) {
+int sensor_batch(struct sensors_poll_device_1* dev0, int handle, int flags __unused, int64_t sampling_period_ns, int64_t max_report_latency_ns __unused) {
     SensorDevice* dev = (SensorDevice*)dev0;
     return dev->sensor_device_batch(handle, sampling_period_ns);
 }
 
-static int sensor_set_delay(struct sensors_poll_device_t* dev0, int handle __unused, int64_t ns) {
+int sensor_set_delay(struct sensors_poll_device_t* dev0, int handle __unused, int64_t ns) {
     SensorDevice* dev = (SensorDevice*)dev0;
     return dev->sensor_device_set_delay(handle, ns);
 }
 
-static int sensor_flush(struct sensors_poll_device_1* dev0, int handle) {
+int sensor_flush(struct sensors_poll_device_1* dev0, int handle) {
     SensorDevice* dev = (SensorDevice*)dev0;
     return dev->sensor_device_flush(handle);
 }
 
-static int sensor_close(struct hw_device_t* dev0) {
+int sensor_close(struct hw_device_t* dev0) {
     ALOGI("close sensor device");
     SensorDevice* dev = (SensorDevice*)dev0;
     delete dev;
@@ -650,7 +650,7 @@ static int sensor_close(struct hw_device_t* dev0) {
  *       all sensors but light, pressure and humidity were
  *       taken from the reference AK8976A implementation
  */
-static const struct sensor_t sSensorListInit[] = {
+const struct sensor_t sSensorListInit[] = {
     {.name                   = "AIC 3-axis Accelerometer",
      .vendor                 = "Intel ACGSS",
      .version                = 1,
@@ -797,13 +797,13 @@ static const struct sensor_t sSensorListInit[] = {
      .reserved               = {}},
 };
 
-static int sensors__get_sensors_list(struct sensors_module_t* module __unused, struct sensor_t const** list) {
+int sensors__get_sensors_list(struct sensors_module_t* module __unused, struct sensor_t const** list) {
     *list = sSensorListInit;
     ALOGD("get sensor list, support %d sensors", MAX_NUM_SENSORS);
     return MAX_NUM_SENSORS;
 }
 
-static int open_sensors(const struct hw_module_t* module, const char* name, struct hw_device_t** device) {
+int open_sensors(const struct hw_module_t* module, const char* name, struct hw_device_t** device) {
     int status = -EINVAL;
     ALOGD("open_sensors");
     if (!strcmp(name, SENSORS_HARDWARE_POLL)) {
