@@ -25,36 +25,6 @@
 
 #define LOCAL_VHAL_IP "127.0.0.1"
 
-enum SENSOR_TYPE {
-    C_SENSOR_TYPE_INVALID                     = -1,
-    C_SENSOR_TYPE_ACCELEROMETER               = 1,
-    C_SENSOR_TYPE_MAGNETIC_FIELD              = 2,
-    C_SENSOR_TYPE_GYROSCOPE                   = 4,
-    C_SENSOR_TYPE_LIGHT                       = 5,
-    C_SENSOR_TYPE_PRESSURE                    = 6,
-    C_SENSOR_TYPE_PROXIMITY                   = 8,
-    C_SENSOR_TYPE_GRAVITY                     = 9,
-    C_SENSOR_TYPE_LINEAR_ACCELERATION         = 10,
-    C_SENSOR_TYPE_ROTATION_VECTOR             = 11,
-    C_SENSOR_TYPE_RELATIVE_HUMIDITY           = 12,
-    C_SENSOR_TYPE_AMBIENT_TEMPERATURE         = 13,
-    C_SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED = 14,
-    C_SENSOR_TYPE_GAME_ROTATION_VECTOR        = 15,
-    C_SENSOR_TYPE_GYROSCOPE_UNCALIBRATED      = 16,
-    C_SENSOR_TYPE_SIGNIFICANT_MOTION          = 17,
-    C_SENSOR_TYPE_STEP_DETECTOR               = 18,
-    C_SENSOR_TYPE_STEP_COUNTER                = 19,
-    C_SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR = 20,
-    C_SENSOR_TYPE_HEART_RATE                  = 21,
-    C_SENSOR_TYPE_POSE_6DOF                   = 28,
-    C_SENSOR_TYPE_STATIONARY_DETECT           = 29,
-    C_SENSOR_TYPE_MOTION_DETECT               = 30,
-    C_SENSOR_TYPE_HEART_BEAT                  = 31,
-    C_SENSOR_TYPE_ADDITIONAL_INFO             = 33,
-    C_SENSOR_TYPE_LOW_LATENCY_OFFBODY_DETECT  = 34,
-    C_SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED  = 35
-};
-
 using namespace std;
 class SensorClient {
 public:
