@@ -4,6 +4,8 @@
 #include "gtest/gtest.h"
 #include "sensor_client.h"
 
+#define LOG_TAG "SensorFixture"
+
 class SensorFixture : public ::testing::Test {
 public:
     virtual void SetUp() {

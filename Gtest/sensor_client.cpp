@@ -44,15 +44,11 @@ SensorClient::SensorClient() {
     if (property_get(SENSOR_SOCK_TYPE_PROP, buf, NULL) > 0) {
         if (!strcmp(buf, "INET")) {
             m_client_sock = new SockClient((char*)LOCAL_VHAL_IP, sensor_port);
-            ALOGI("SensorClient: LOCAL_VHAL_IP = %s, sensor_port = %d", LOCAL_VHAL_IP, sensor_port);
-
         } else {
             m_client_sock = new SockClient(SocketPath.c_str());
-            ALOGI("SensorClient: LOCAL_VHAL_IP = %s UNIX Type", SocketPath.c_str());
         }
     } else {
         m_client_sock = new SockClient(SocketPath.c_str());
-        ALOGI("SensorClient: LOCAL_VHAL_IP = %s UNIX Type", SocketPath.c_str());
     }
 
     m_client_sock->register_connected_callback(std::bind(&SensorClient::vhal_connected_callback, this, std::placeholders::_1));
@@ -73,7 +69,7 @@ bool SensorClient::is_connected() {
 }
 
 void SensorClient::vhal_connected_callback(SockClient *sock) {
-    ALOGI("Connected to server successfully");
+    ALOGI("connected to server successfully");
     (void)(sock);
     m_connected = true;
 }
@@ -91,7 +87,7 @@ void SensorClient::vhal_listener_handler(SockClient* client) {
             if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN) {
                 usleep(1000);
                 if ((retry_count--) < 0) {
-                    ALOGW("[timeout], failed to recv sensor config data from vhal:target = %d, recved len = %d, [%s], \n", len, len - left_size, strerror(errno));
+                    ALOGW("[timeout], failed to recv sensor config data from vhal:target: %d, recved len: %d, [%s], \n", len, len - left_size, strerror(errno));
                     return;
                 }
                 continue;
@@ -100,15 +96,14 @@ void SensorClient::vhal_listener_handler(SockClient* client) {
                 return;
             }
         }
-        // ALOGD("read. data len: %d\n", len);
         left_size -= ret;
         pointer += ret;
     }
 
-    ALOGI("receive config message from sensor vhal, sensor type=%d, enabled=%d, sample period=%d",
+    ALOGI("receive default config message from sensor vhal, sensor type: %d, enabled: %d, sample period: %d",
         sensor_ctrl_msg.sensor_type, sensor_ctrl_msg.enabled, sensor_ctrl_msg.sample_period);
     m_sensor_num++;
-    if(sensor_ctrl_msg.sensor_type == ACG_SENSOR_TYPE_ACCELEROMETER) {
+    if(sensor_ctrl_msg.sensor_type == SENSOR_TYPE_ACCELEROMETER) {
         if(sensor_ctrl_msg.enabled) {
             m_acc_enabled = true;
         } else {
