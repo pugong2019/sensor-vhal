@@ -44,15 +44,18 @@ SensorClient::SensorClient() {
     char *k8s_env_value = getenv("K8S_ENV");
     SocketPath = (k8s_env_value != NULL && !strcmp(k8s_env_value, "true"))
 			                ? "/conn/sensors-socket" : sock_path.c_str();
-
+    int connection_type;
     if (property_get(SENSOR_SOCK_TYPE_PROP, buf, NULL) > 0) {
-        if (!strcmp(buf, "INET")) {
+        if (!strcmp(buf, "INET")) { 
             m_client_sock = new SockClient((char*)LOCAL_VHAL_IP, sensor_port);
+            connection_type = SOCK_CONN_TYPE_INET_SOCK;
         } else {
             m_client_sock = new SockClient(SocketPath.c_str());
+            connection_type = SOCK_CONN_TYPE_UNIX_SOCK;
         }
     } else {
         m_client_sock = new SockClient(SocketPath.c_str());
+        connection_type = SOCK_CONN_TYPE_INET_SOCK;
     }
     m_client_sock->register_connected_callback(std::bind(&SensorClient::vhal_connected_callback, this, std::placeholders::_1));
     m_client_sock->register_connected_callback(std::bind(&SensorClient::vhal_disconnected_callback, this, std::placeholders::_1));

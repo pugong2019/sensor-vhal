@@ -21,6 +21,7 @@
 #include "SensorFixture.h"
 
 #define SUPPORTED_SENSORS_NUMBER 9
+#define INVALID_SENSOR_TYPE     -1
 
 TEST_F(SensorFixture, SocketConnectionCheck)
 {
@@ -28,16 +29,17 @@ TEST_F(SensorFixture, SocketConnectionCheck)
     ASSERT_TRUE(m_sensor_client.is_connected());
 }
 
-TEST_F(SensorFixture, SensorsNumberCheck)
+TEST_F(SensorFixture, SupportedSensorsNumberCheck)
 {
     this_thread::sleep_for(std::chrono::microseconds(1000));
-    ASSERT_EQ(m_sensors_helper.get_supported_sensors_num(), m_sensor_client.get_sensor_num());
+    ASSERT_EQ(SUPPORTED_SENSORS_NUMBER, m_sensors_helper.get_supported_sensors_num()); // Server Check
+    ASSERT_EQ(SUPPORTED_SENSORS_NUMBER, m_sensor_client.get_sensor_num());  //Client Check
 }
 
 TEST_F(SensorFixture, SensorsTypeCheck)
 {
     this_thread::sleep_for(std::chrono::microseconds(1000));
-    ASSERT_FALSE(m_sensors_helper.is_supported_type(-1));
+    ASSERT_FALSE(m_sensors_helper.is_supported_type(INVALID_SENSOR_TYPE));
     ASSERT_TRUE(m_sensors_helper.is_supported_type(SENSOR_TYPE_ACCELEROMETER));
     ASSERT_TRUE(m_sensors_helper.is_supported_type(SENSOR_TYPE_GYROSCOPE));
     ASSERT_TRUE(m_sensors_helper.is_supported_type(SENSOR_TYPE_MAGNETIC_FIELD));
