@@ -101,8 +101,8 @@ public:
     typedef std::function<void(SockClient* sock)> connected_callback_t;
     typedef std::function<void(SockClient* sock)> disconnected_callback_t;
 
-    SockClient(char* ip, int port, float timeout = 2);
-    SockClient(const char *server_path, float timeout = 2);
+    SockClient(char* ip, int port, float timeout_s = 2);
+    SockClient(const char *server_path, float timeout_s = 2);
     ~SockClient();
 
     int start();
