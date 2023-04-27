@@ -20,4 +20,5 @@ TEST_F(SensorFixture, AccelerometerDefaultEnabledCheck)
 {
     this_thread::sleep_for(std::chrono::microseconds(1000));
     ASSERT_TRUE(m_sensor_client.is_acc_default_enabled());
+    ASSERT_EQ(10, test_num);
 }
