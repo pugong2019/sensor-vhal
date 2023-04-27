@@ -39,7 +39,6 @@ private:
     void vhal_listener_handler(SockClient* client);
     bool m_connected = false;
     bool m_acc_enabled = false;
-
     int m_sensor_num = 0;
     SockClient* m_client_sock = nullptr;
 };

@@ -62,7 +62,6 @@ typedef struct {
 } sensor_config_msg_t;
 
 
-int test_num = 10;
 // snesor payload
 //now AIC only support acceleration, magnetic, gyro
 /*
