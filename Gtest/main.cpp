@@ -17,9 +17,7 @@
  */
 
 // #include "sensor_client.h"
-#include "SensorFixture.h"
-
-using namespace std;
+#include "sensors_fixture.h"
 
 int main(int argc, char **argv) {
     setenv("TERM", "xterm-color", true);

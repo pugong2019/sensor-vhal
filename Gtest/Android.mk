@@ -22,8 +22,8 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_SRC_FILES := \
     main.cpp \
-    sensor_client.cpp \
-    SensorFixture.cpp \
+    sensors_client.cpp \
+    sensors_fixture.cpp \
     ../sock_utils/sock_utils.cpp \
     ../sock_utils/sock_client.cpp \
     ../sock_utils/sock_server.cpp

@@ -26,20 +26,20 @@
 #define LOCAL_VHAL_IP "127.0.0.1"
 
 using namespace std;
-class SensorClient {
+class SensorsClient {
 public:
-    SensorClient();
-    ~SensorClient();
-    bool is_connected();
-    int get_sensor_num();
-    int is_acc_default_enabled() { return m_acc_enabled; };
+    SensorsClient();
+    ~SensorsClient();
+    int get_sensors_num() { return m_sensors_num; };
+    int is_acc_default_enabled() { return m_acc_enabled; }
+    bool is_connected() { return m_connected; }
 
 private:
     void vhal_connected_callback(SockClient *sock);
-    void vhal_disconnected_callback(SockClient *sock)
+    void vhal_disconnected_callback(SockClient *sock);
     void vhal_message_callback(SockClient* client);
     bool m_connected = false;
     bool m_acc_enabled = false;
-    int m_sensor_num = 0;
+    int m_sensors_num = 0;
     SockClient* m_client_sock = nullptr;
 };

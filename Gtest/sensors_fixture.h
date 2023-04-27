@@ -20,12 +20,12 @@
 #define _SENSOR_FIXTURE_H
 
 #include "gtest/gtest.h"
-#include "sensor_client.h"
+#include "sensors_client.h"
 #include "sensors_helper.h"
 
 #define LOG_TAG "SensorsFixture"
 
-class SensorFixture : public ::testing::Test {
+class SensorsFixture : public ::testing::Test {
 public:
     virtual void SetUp() {
         // Code here will be called immediately after the constructor (right
@@ -39,7 +39,7 @@ public:
         ALOGI("Call SensorsFixture::TearDown()");
     }
 public:
-    SensorClient m_sensor_client;
+    SensorsClient m_sensors_client;
     SensorsHelper m_sensors_helper;
 };
 

@@ -20,14 +20,14 @@
 #define _SENSORS_CLIENT_H
 
 #include <log/log.h>
-#include "sensor_client.h"
+#include "sensors_client.h"
 #include "sock_utils.h"
 
-#define LOG_TAG "SensorClient"
+#define LOG_TAG "SensorsClient"
 
 using namespace std;
 
-SensorClient::SensorClient() {
+SensorsClient::SensorsClient() {
     char buf[PROPERTY_VALUE_MAX] = {
         '\0',
     };
@@ -46,7 +46,7 @@ SensorClient::SensorClient() {
 			                ? "/conn/sensors-socket" : sock_path.c_str();
     int connection_type;
     if (property_get(SENSOR_SOCK_TYPE_PROP, buf, NULL) > 0) {
-        if (!strcmp(buf, "INET")) { 
+        if (!strcmp(buf, "INET")) {
             m_client_sock = new SockClient((char*)LOCAL_VHAL_IP, sensor_port);
             connection_type = SOCK_CONN_TYPE_INET_SOCK;
         } else {
@@ -57,14 +57,14 @@ SensorClient::SensorClient() {
         m_client_sock = new SockClient(SocketPath.c_str());
         connection_type = SOCK_CONN_TYPE_INET_SOCK;
     }
-    m_client_sock->register_connected_callback(std::bind(&SensorClient::vhal_connected_callback, this, std::placeholders::_1));
-    m_client_sock->register_connected_callback(std::bind(&SensorClient::vhal_disconnected_callback, this, std::placeholders::_1));
-    m_client_sock->register_listener_callback(std::bind(&SensorClient::vhal_message_callback, this, std::placeholders::_1));
+    m_client_sock->register_connected_callback(std::bind(&SensorsClient::vhal_connected_callback, this, std::placeholders::_1));
+    m_client_sock->register_connected_callback(std::bind(&SensorsClient::vhal_disconnected_callback, this, std::placeholders::_1));
+    m_client_sock->register_listener_callback(std::bind(&SensorsClient::vhal_message_callback, this, std::placeholders::_1));
     m_client_sock->start();
 }
 
 
-SensorClient::~SensorClient() {
+SensorsClient::~SensorsClient() {
     m_acc_enabled = false;
     m_connected = false;
     if(m_client_sock) {
@@ -73,24 +73,19 @@ SensorClient::~SensorClient() {
     }
 }
 
-bool SensorClient::is_connected() {
-    return m_connected;
-}
-
-void SensorClient::vhal_connected_callback(SockClient *sock) {
+void SensorsClient::vhal_connected_callback(SockClient *sock) {
     ALOGI("disconnected to server");
     (void)(sock);
     m_connected = false;
 }
 
-void SensorClient::vhal_disconnected_callback(SockClient *sock) {
+void SensorsClient::vhal_disconnected_callback(SockClient *sock) {
     ALOGI("connected to server successfully");
     (void)(sock);
     m_connected = true;
 }
 
-
-void SensorClient::vhal_message_callback(SockClient* client) {
+void SensorsClient::vhal_message_callback(SockClient* client) {
     sensor_config_msg_t sensor_ctrl_msg;
     char* pointer   = (char*)(&sensor_ctrl_msg);
     int len         = sizeof(sensor_config_msg_t);
@@ -117,7 +112,7 @@ void SensorClient::vhal_message_callback(SockClient* client) {
 
     ALOGI("receive default config message from sensor vhal, sensor type: %d, enabled: %d, sample period: %d",
         sensor_ctrl_msg.sensor_type, sensor_ctrl_msg.enabled, sensor_ctrl_msg.sample_period);
-    m_sensor_num++;
+    m_sensors_num++;
     if(sensor_ctrl_msg.sensor_type == SENSOR_TYPE_ACCELEROMETER) {
         if(sensor_ctrl_msg.enabled) {
             m_acc_enabled = true;
@@ -125,10 +120,6 @@ void SensorClient::vhal_message_callback(SockClient* client) {
             m_acc_enabled = false;
         }
     }
-}
-
-int SensorClient::get_sensor_num() {
-    return m_sensor_num;
 }
 
 #endif

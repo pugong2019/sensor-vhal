@@ -18,25 +18,25 @@
 
 #include <thread>
 #include <chrono>
-#include "SensorFixture.h"
+#include "sensors_fixture.h"
 
 #define SUPPORTED_SENSORS_NUMBER 9
 #define INVALID_SENSOR_TYPE     -1
 
-TEST_F(SensorFixture, SocketConnectionCheck)
+TEST_F(SensorsFixture, SocketConnectionCheck)
 {
     this_thread::sleep_for(std::chrono::microseconds(2000));
-    ASSERT_TRUE(m_sensor_client.is_connected());
+    ASSERT_TRUE(m_sensors_client.is_connected());
 }
 
-TEST_F(SensorFixture, SupportedSensorsNumberCheck)
+TEST_F(SensorsFixture, SupportedSensorsNumberCheck)
 {
     this_thread::sleep_for(std::chrono::microseconds(1000));
     ASSERT_EQ(SUPPORTED_SENSORS_NUMBER, m_sensors_helper.get_supported_sensors_num()); // Server Check
-    ASSERT_EQ(SUPPORTED_SENSORS_NUMBER, m_sensor_client.get_sensor_num());  //Client Check
+    ASSERT_EQ(SUPPORTED_SENSORS_NUMBER, m_sensors_client.get_sensors_num());  //Client Check
 }
 
-TEST_F(SensorFixture, SensorsTypeCheck)
+TEST_F(SensorsFixture, SensorsTypeCheck)
 {
     this_thread::sleep_for(std::chrono::microseconds(1000));
     ASSERT_FALSE(m_sensors_helper.is_supported_type(INVALID_SENSOR_TYPE));
@@ -51,8 +51,8 @@ TEST_F(SensorFixture, SensorsTypeCheck)
     ASSERT_TRUE(m_sensors_helper.is_supported_type(SENSOR_TYPE_AMBIENT_TEMPERATURE));
 }
 
-TEST_F(SensorFixture, AccelerometerDefaultEnabledCheck)
+TEST_F(SensorsFixture, AccelerometerDefaultEnabledCheck)
 {
     this_thread::sleep_for(std::chrono::microseconds(1000));
-    ASSERT_TRUE(m_sensor_client.is_acc_default_enabled());
+    ASSERT_TRUE(m_sensors_client.is_acc_default_enabled());
 }
