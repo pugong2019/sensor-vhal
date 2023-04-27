@@ -124,6 +124,7 @@ public:
     int sensor_device_flush(int handle);
     int sensor_device_set_delay(int handle, int64_t ns);
     int sensor_device_batch(int sensor_handle, int64_t sampling_period_ns);
+    int get_handle_from_type(int sensor_type);
 
 private:
     uint32_t m_flush_count[MAX_NUM_SENSORS];
@@ -150,7 +151,6 @@ private:
     int sensor_device_pick_pending_event_locked(sensors_event_t* event);
     void sensor_event_callback(SockServer* sock, sock_client_proxy_t* client);
     void client_connected_callback(SockServer* sock, sock_client_proxy_t* client);
-    int get_handle_from_type(int sensor_type);
     int get_payload_len(int sensor_type);
     const char* get_name_from_handle(int id);
 };

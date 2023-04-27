@@ -37,3 +37,5 @@ LOCAL_SRC_FILES := \
 		sock_utils/sock_server.cpp \
 		sock_utils/sock_utils.cpp
 include $(BUILD_SHARED_LIBRARY)
+
+include $(call all-makefiles-under, $(LOCAL_PATH))
