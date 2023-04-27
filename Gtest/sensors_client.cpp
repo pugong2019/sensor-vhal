@@ -80,7 +80,7 @@ void SensorsClient::vhal_connected_callback(SockClient *sock) {
 }
 
 void SensorsClient::vhal_disconnected_callback(SockClient *sock) {
-    ALOGI("connected to server successfully");
+    ALOGI("connected to server successfully: %s, %d", sock->get_ip(), sock->get_port());
     (void)(sock);
     m_connected = true;
 }

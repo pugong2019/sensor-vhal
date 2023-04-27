@@ -25,7 +25,7 @@ LOCAL_CFLAGS += -std=c++11
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/sock_utils/include
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := sensors.cic_cloud
-LOCAL_CFLAGS += -DLOG_TAG=\"sensors_vhal\"
+LOCAL_CFLAGS += -DLOG_TAG=\"SensorsVhal\"
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_HEADER_LIBRARIES := libhardware_headers

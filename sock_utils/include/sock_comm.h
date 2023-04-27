@@ -34,7 +34,7 @@ typedef int SOCK_BOOL;
     } while (0)
 
 #ifndef LOG_TAG
-#define LOG_TAG "SOCK_UTIL"
+#define LOG_TAG "SensorsSock"
 #endif
 
 #ifdef HOST_BUILD

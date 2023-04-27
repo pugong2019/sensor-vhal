@@ -17,6 +17,7 @@
 #include "sensors_vhal.h"
 
 using namespace ::std::placeholders;
+#define LOG_TAG "SensorsVhal"
 
 template <typename T, typename... Ts>
 std::unique_ptr<T> make_unique_ptr(Ts&&... params) {
@@ -56,10 +57,13 @@ SensorDevice::SensorDevice() {
     else
         mConnType = SOCK_CONN_TYPE_UNIX_SOCK;
 
+    ALOGI("SensorDevice: virtual_sensor_port = %d, SOCK_CONN_TYPE_UNIX_SOCK = %d", virtual_sensor_port, SOCK_CONN_TYPE_UNIX_SOCK);
     m_socket_server = new SockServer(virtual_sensor_port, mConnType);
     m_socket_server->register_listener_callback(std::bind(&SensorDevice::sensor_event_callback, this, _1, _2));
     m_socket_server->register_connected_callback(std::bind(&SensorDevice::client_connected_callback, this, _1, _2));
-    m_socket_server->start();
+    if(m_socket_server->start() < 0) {
+        ALOGW("m_socket_server FAILED");
+    }
     char prop_value[PROP_VALUE_MAX] = {'\0'};
     int len = __system_property_get(SYS_VHAL_PROP_LOG_TRACE_COUNT, prop_value);
     if (len > 0) {

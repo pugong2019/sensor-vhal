@@ -20,7 +20,7 @@ LOCAL_PATH := $(call my-dir)
 #####################libsock_util###########################
 include $(CLEAR_VARS)
 
-LOCAL_CFLAGS := -g -DLOG_TAG=\"sock_util\"
+LOCAL_CFLAGS := -g -DLOG_TAG=\"SensorsSock\"
 LOCAL_LDFLAGS := -g
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include
