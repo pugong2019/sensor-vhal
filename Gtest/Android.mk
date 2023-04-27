@@ -24,10 +24,11 @@ LOCAL_SRC_FILES := \
     main.cpp \
     sensors_client.cpp \
     sensors_fixture.cpp \
+    ../sensors_vhal.cpp \
     ../sock_utils/sock_utils.cpp \
     ../sock_utils/sock_client.cpp \
     ../sock_utils/sock_server.cpp
 
-LOCAL_MODULE:= SensorTest
+LOCAL_MODULE:= SensorsTest
 
 include $(BUILD_EXECUTABLE)

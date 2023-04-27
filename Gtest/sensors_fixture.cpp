@@ -22,6 +22,10 @@
 
 #define SUPPORTED_SENSORS_NUMBER 9
 #define INVALID_SENSOR_TYPE     -1
+#define INVALID_SENSOR_HANDLE   -1
+#define ENABLED  1
+#define DISABLED 0
+#define DATA_NUM 5
 
 TEST_F(SensorsFixture, SocketConnectionCheck)
 {
@@ -56,3 +60,34 @@ TEST_F(SensorsFixture, AccelerometerDefaultEnabledCheck)
     this_thread::sleep_for(std::chrono::microseconds(1000));
     ASSERT_TRUE(m_sensors_client.is_acc_default_enabled());
 }
+
+TEST_F(SensorsFixture, ActivateMagneticFiledEvents)
+{
+    this_thread::sleep_for(std::chrono::microseconds(1000));
+    ASSERT_GT(0, m_sensor_dev.sensor_device_activate(INVALID_SENSOR_HANDLE, ENABLED));
+    ASSERT_EQ(0, m_sensor_dev.sensor_device_activate(ID_MAGNETIC_FIELD, ENABLED));
+}
+
+TEST_F(SensorsFixture, BatchMagneticFiledEvents)
+{
+    this_thread::sleep_for(std::chrono::microseconds(1000));
+    uint64_t sample_period = 50000000; //ns
+    ASSERT_GT(0, m_sensor_dev.sensor_device_batch(INVALID_SENSOR_HANDLE, sample_period));
+    ASSERT_EQ(0, m_sensor_dev.sensor_device_batch(ID_MAGNETIC_FIELD, sample_period));
+}
+
+TEST_F(SensorsFixture, SetDelayMagneticFiledEvents)
+{
+    this_thread::sleep_for(std::chrono::microseconds(1000));
+    uint64_t sample_period = 50000000;
+    ASSERT_GT(0, m_sensor_dev.sensor_device_set_delay(INVALID_SENSOR_HANDLE, sample_period));
+    ASSERT_EQ(0, m_sensor_dev.sensor_device_set_delay(ID_MAGNETIC_FIELD, sample_period));
+}
+
+TEST_F(SensorsFixture, PollEvents)
+{
+    this_thread::sleep_for(std::chrono::microseconds(1000));
+    sensors_event_t data[DATA_NUM];
+    ASSERT_EQ(DATA_NUM, m_sensor_dev.sensor_device_poll(data, DATA_NUM));
+}
+

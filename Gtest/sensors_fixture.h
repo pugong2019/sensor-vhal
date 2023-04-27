@@ -29,6 +29,7 @@ class SensorsFixture : public ::testing::Test {
 public:
     SensorsClient m_sensors_client;
     SensorsHelper m_sensors_helper;
+    SensorDevice m_sensor_dev;
 };
 
 #endif
