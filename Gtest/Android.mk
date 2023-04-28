@@ -7,7 +7,7 @@ LOCAL_CFLAGS += -Wno-unused-parameter -Wno-macro-redefined -fexceptions
 
 LOCAL_MODULE_TAGS:= optional
 
-LOCAL_SHARED_LIBRARIES += liblog libcutils libutils
+LOCAL_SHARED_LIBRARIES += liblog libcutils libutils sensors.cic_cloud
 LOCAL_MULTILIB := 64
 LOCAL_VENDOR_MODULE := true
 LOCAL_STATIC_LIBRARIES += libgtest_main libgtest libgmock
@@ -24,7 +24,6 @@ LOCAL_SRC_FILES := \
     main.cpp \
     sensors_client.cpp \
     sensors_fixture.cpp \
-    ../sensors_vhal.cpp \
     ../sock_utils/sock_utils.cpp \
     ../sock_utils/sock_client.cpp \
     ../sock_utils/sock_server.cpp
